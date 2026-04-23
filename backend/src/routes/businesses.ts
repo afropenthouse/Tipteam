@@ -19,8 +19,9 @@ router.get("/", authenticate, async (req: AuthRequest, res: Response) => {
 
 router.get("/:id", authenticate, async (req: AuthRequest, res: Response) => {
   try {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const business = await prisma.business.findFirst({
-      where: { id: req.params.id, ownerId: req.userId },
+      where: { id, ownerId: req.userId },
     });
     if (!business) {
       return res.status(404).json({ error: "Business not found" });
@@ -83,9 +84,10 @@ router.put(
       }
 
       const { name, email, phone, address } = req.body;
+      const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
 
       const existing = await prisma.business.findFirst({
-        where: { id: req.params.id, ownerId: req.userId },
+        where: { id, ownerId: req.userId },
       });
 
       if (!existing) {
@@ -93,7 +95,7 @@ router.put(
       }
 
       const business = await prisma.business.update({
-        where: { id: req.params.id },
+        where: { id },
         data: { name, email, phone, address },
       });
 
@@ -106,15 +108,16 @@ router.put(
 
 router.delete("/:id", authenticate, async (req: AuthRequest, res: Response) => {
   try {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const existing = await prisma.business.findFirst({
-      where: { id: req.params.id, ownerId: req.userId },
+      where: { id, ownerId: req.userId },
     });
 
     if (!existing) {
       return res.status(404).json({ error: "Business not found" });
     }
 
-    await prisma.business.delete({ where: { id: req.params.id } });
+    await prisma.business.delete({ where: { id } });
 
     res.json({ message: "Business deleted" });
   } catch (error) {

@@ -88,15 +88,16 @@ router.get("/summary", authenticate, async (req: AuthRequest, res: Response) => 
 
 router.get("/business/:businessId", authenticate, async (req: AuthRequest, res: Response) => {
   try {
+    const businessId = Array.isArray(req.params.businessId) ? req.params.businessId[0] : req.params.businessId;
     const business = await prisma.business.findFirst({
-      where: { id: req.params.businessId, ownerId: req.userId },
+      where: { id: businessId, ownerId: req.userId },
     });
 
     if (!business) {
       return res.status(404).json({ error: "Business not found" });
     }
 
-    const summary = await getWalletSummary(req.params.businessId);
+    const summary = await getWalletSummary(businessId);
     res.json(summary);
   } catch (error) {
     res.status(500).json({ error: "Failed to get wallet" });

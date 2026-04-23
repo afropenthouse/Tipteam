@@ -7,8 +7,9 @@ const router = Router();
 router.get("/:businessId", async (req: Request, res: Response) => {
   try {
     console.log("Fetching feedback for businessId:", req.params.businessId);
+    const businessId = Array.isArray(req.params.businessId) ? req.params.businessId[0] : req.params.businessId;
     const feedbacks = await prisma.feedback.findMany({
-      where: { businessId: req.params.businessId },
+      where: { businessId },
       orderBy: { createdAt: "desc" },
     });
     console.log("Found feedbacks:", feedbacks.length);
