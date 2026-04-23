@@ -78,7 +78,7 @@ export type Business = {
 export type Feedback = {
   id: string;
   businessId: string;
-  rating: number;
+  rating?: number | null;
   experience?: string;
   phone?: string;
   tipAmount: number;

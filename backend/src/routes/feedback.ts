@@ -32,7 +32,10 @@ router.post(
   ],
   async (req: any, res: Response) => {
     try {
-      const { businessId, rating, experience, phone, tipAmount, paystackRef } = req.body;
+      let { businessId, rating, experience, phone, tipAmount, paystackRef } = req.body;
+
+      // Treat rating of 0 as no rating (for tip-only flows)
+      if (rating === 0) rating = undefined;
 
       const business = await prisma.business.findUnique({ where: { id: businessId } });
       if (!business) {

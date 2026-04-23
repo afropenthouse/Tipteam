@@ -15,7 +15,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import type { Business } from "@/lib/api";
 
-const TIP_PRESETS = [500, 1000, 2000, 5000, 10000];
+const TIP_PRESETS = [1000, 2000, 5000, 10000];
 
 type Step = "start" | "rating" | "experience" | "phone" | "tip" | "email" | "done";
 
@@ -102,7 +102,7 @@ export default function Rate() {
       setSubmittingFeedback(true);
       await addFeedback({
         businessId,
-        rating,
+        ...(rating > 0 ? { rating } : {}),
         experience: experience.trim() || undefined,
         phone: phone.trim() || undefined,
         tipAmount: tip,
@@ -135,12 +135,13 @@ export default function Rate() {
 
     try {
       setPaying(true);
-      const { authorizationUrl } = await initializePayment(customerEmail.trim(), amt, businessId, {
-        rating,
+      const metadata = {
+        ...(rating > 0 ? { rating } : {}),
         experience: experience.trim() || undefined,
         phone: phone.trim() || undefined,
         teamNumber: teamNumber.trim() || undefined,
-      });
+      };
+      const { authorizationUrl } = await initializePayment(customerEmail.trim(), amt, businessId, metadata);
 
       window.location.assign(authorizationUrl);
     } catch (err) {
@@ -229,7 +230,7 @@ export default function Rate() {
                   onClick={() => setStep("tip")}
                   className="w-full text-base py-6"
                 >
-                  Tip the team member
+                  Tip a team member
                 </Button>
               </div>
             </div>

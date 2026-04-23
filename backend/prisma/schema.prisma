@@ -64,7 +64,7 @@ model Business {
 model Feedback {
   id         String   @id @default(uuid())
   businessId String
-  rating     Int
+  rating     Int?
   experience String?
   complaint  String?
   phone      String?

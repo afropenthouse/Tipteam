@@ -171,7 +171,7 @@ router.post(
       const metadata = (transactionData.metadata || {}) as PaymentMetadata;
       const businessId = metadata.businessId;
       const parsedRating = Number(metadata.rating);
-      const rating = Number.isInteger(parsedRating) && parsedRating >= 1 && parsedRating <= 5 ? parsedRating : 5;
+      const rating = Number.isInteger(parsedRating) && parsedRating >= 1 && parsedRating <= 5 ? parsedRating : null;
 
       if (!businessId) {
         return res.status(400).json({ error: "Missing business ID in payment metadata" });
