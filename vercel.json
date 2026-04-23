@@ -16,15 +16,11 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "backend/dist/index.js"
-    },
-    {
-      "src": "/(.*\\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot))",
-      "dest": "/frontend/dist/$1"
+      "dest": "backend/src/index.ts"
     },
     {
       "src": "/(.*)",
-      "dest": "/frontend/dist/index.html"
+      "dest": "frontend/dist/index.html"
     }
   ],
   "env": {
