@@ -1,0 +1,101 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  fullName  String
+  email     String   @unique
+  password  String
+  avatarUrl String?
+  isVerified Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  businesses  Business[]
+  verifications Verification[]
+
+  @@map("users")
+}
+
+model Verification {
+  id        String   @id @default(uuid())
+  userId    String
+  type      VerificationType
+  token     String?  @unique
+  code      String?
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("verifications")
+}
+
+enum VerificationType {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+  WITHDRAWAL_VERIFICATION
+}
+
+model Business {
+  id        String   @id @default(uuid())
+  ownerId   String
+  name      String
+  email     String
+  phone     String
+  address   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner       User         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  feedbacks   Feedback[]
+  withdrawals Withdrawal[]
+
+  @@map("businesses")
+}
+
+model Feedback {
+  id         String   @id @default(uuid())
+  businessId String
+  rating     Int
+  experience String?
+  complaint  String?
+  phone      String?
+  tipAmount  Int      @default(0)
+  paystackRef String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@map("feedbacks")
+}
+
+model Withdrawal {
+  id         String   @id @default(uuid())
+  businessId String
+  amount     Int
+  accountNumber String
+  bankName   String
+  status     WithdrawalStatus @default(PENDING)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@map("withdrawals")
+}
+
+enum WithdrawalStatus {
+  AWAITING_CONFIRMATION
+  PENDING
+  APPROVED
+  REJECTED
+}
