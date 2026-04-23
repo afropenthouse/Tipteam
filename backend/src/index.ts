@@ -12,7 +12,7 @@ dotenv.config();
 const app = express();
 
 const allowedOrigins = new Set(
-  [process.env.FRONTEND_URL, "http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:5173"].filter(
+  [process.env.FRONTEND_URL, "https://tiptheteam.vercel.app", "http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:5173"].filter(
     (origin): origin is string => Boolean(origin)
   )
 );
