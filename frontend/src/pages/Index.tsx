@@ -32,13 +32,11 @@ const Index = () => {
             <span className="inline-flex items-center rounded-full border border-primary-foreground/20 bg-primary-foreground/5 px-3 py-1 text-xs font-medium uppercase tracking-wider text-primary-foreground/80">
               For modern hospitality teams
             </span>
-            <h1 className="mt-5 text-4xl font-bold leading-tight tracking-tight md:text-6xl">
-              Capture honest feedback.
-              <br />
-              <span className="bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
-                Get tipped instantly.
-              </span>
-            </h1>
+             <h1 className="mt-5 text-4xl font-bold leading-tight tracking-tight md:text-6xl">
+               Capture honest feedback.
+               <br />
+               <span className="text-primary">Get tipped instantly.</span>
+             </h1>
             <p className="mt-5 max-w-xl text-base text-primary-foreground/70 md:text-lg">
               One QR code per location. Customers rate your service, share complaints, and tip your team —
               all in seconds. You see everything in one dashboard.
