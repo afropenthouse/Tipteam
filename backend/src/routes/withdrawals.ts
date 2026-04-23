@@ -182,7 +182,6 @@ router.post(
         amount,
         businessName: business.name,
         accountNumber,
-        bankName,
       });
 
       res.status(201).json({
