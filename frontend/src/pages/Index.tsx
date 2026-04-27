@@ -59,7 +59,7 @@ const Index = () => {
       <section className="mx-auto max-w-6xl px-4 py-20 md:px-8">
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           {[
-            { icon: QrCode, title: "One QR per business", desc: "Print it, share it, paste it on receipts." },
+            { icon: QrCode, title: "One QR per business", desc: "Print it, share it, paste it on walls." },
             { icon: Star, title: "Star ratings", desc: "Frictionless 1–5 star feedback in seconds." },
             { icon: MessageSquareWarning, title: "Real complaints", desc: "Hear what guests won't say to your face." },
             { icon: Wallet, title: "Tip wallet", desc: "Customers tip your team. Withdraw on demand." },
