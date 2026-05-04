@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { body, validationResult } from "express-validator";
 import { createRequire } from "module";
 import prisma from "../lib/prisma.js";
+import { authenticate, AuthRequest } from "../middleware/auth.js";
 
 const router = Router();
 const paystackSecretKey = process.env.PAYSTACK_SECRET_KEY;
@@ -201,6 +202,131 @@ router.post(
     } catch (error) {
       console.error("Paystack verify error:", error);
       res.status(500).json({ error: "Failed to verify payment" });
+    }
+  }
+);
+
+// Subscription payment initialization
+router.post(
+  "/initialize-subscription",
+  authenticate,
+  [
+    body("email").isEmail().withMessage("A valid email is required"),
+    body("amount").isInt({ min: 1 }).withMessage("Amount must be at least 1"),
+    body("planType").isIn(["THREE_MONTHS", "SIX_MONTHS", "NINE_MONTHS", "TWELVE_MONTHS"]).withMessage("Invalid plan type"),
+  ],
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ error: errors.array()[0]?.msg || "Invalid payment details" });
+      }
+
+      const { email, amount, planType } = req.body;
+
+      const paystack = getPaystackClient();
+      const transaction = await paystack.transaction.initialize({
+        email,
+        amount: String(amount),
+        currency: "NGN",
+        callback_url: `${process.env.FRONTEND_URL || "http://localhost:5173"}/dashboard/subscriptions`,
+        metadata: {
+          planType,
+          payerEmail: email,
+          type: "subscription",
+        },
+      });
+
+      if (!transaction.status || !transaction.data?.authorization_url) {
+        return res.status(400).json({ error: transaction.message || "Failed to initialize subscription payment" });
+      }
+
+      res.json({
+        authorizationUrl: transaction.data.authorization_url,
+        reference: transaction.data.reference,
+      });
+    } catch (error) {
+      console.error("Paystack subscription init error:", error);
+      res.status(500).json({ error: "Failed to initialize subscription payment" });
+    }
+  }
+);
+
+// Subscription payment verification
+router.post(
+  "/verify-subscription",
+  authenticate,
+  [body("reference").notEmpty().withMessage("Reference is required")],
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ error: errors.array()[0]?.msg || "Invalid payment reference" });
+      }
+
+      const { reference, planType: requestPlanType } = req.body;
+
+      const paystack = getPaystackClient();
+      const transaction = await paystack.transaction.verify(reference);
+
+      if (!transaction.status) {
+        return res.status(400).json({ error: transaction.message || "Unable to verify payment" });
+      }
+
+      const transactionData = transaction.data;
+      if (!transactionData) {
+        return res.status(400).json({ error: "Missing transaction details from Paystack" });
+      }
+
+      if (transactionData.status !== "success") {
+        return res.status(400).json({ success: false, error: "Payment not successful" });
+      }
+
+      // Get planType from request body or transaction metadata
+      const metadata = (transactionData.metadata || {}) as { planType?: string };
+      const planType = requestPlanType || metadata.planType;
+
+      // Create subscription after successful payment
+      const pricing = {
+        THREE_MONTHS: { duration: 3, price: 3000000 },
+        SIX_MONTHS: { duration: 6, price: 6000000 },
+        NINE_MONTHS: { duration: 9, price: 9000000 },
+        TWELVE_MONTHS: { duration: 12, price: 12000000 }
+      };
+
+      const plan = pricing[planType as keyof typeof pricing];
+      if (!plan) {
+        return res.status(400).json({ error: "Invalid plan type" });
+      }
+
+      const userId = req.userId;
+
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const startDate = new Date();
+      const endDate = new Date(startDate);
+      endDate.setMonth(endDate.getMonth() + plan.duration);
+
+      // Create subscription
+      const subscription = await prisma.subscription.create({
+        data: {
+          userId,
+          planType: planType as "THREE_MONTHS" | "SIX_MONTHS" | "NINE_MONTHS" | "TWELVE_MONTHS",
+          duration: plan.duration,
+          price: plan.price,
+          status: "ACTIVE",
+          startDate,
+          endDate,
+          paystackRef: reference,
+        },
+      });
+
+      res.json({ success: true, subscription });
+    } catch (error) {
+      console.error("Paystack subscription verify error:", error);
+      res.status(500).json({ error: "Failed to verify subscription payment" });
     }
   }
 );

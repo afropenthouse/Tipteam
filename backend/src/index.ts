@@ -6,6 +6,7 @@ import businessRoutes from "./routes/businesses.js";
 import feedbackRoutes from "./routes/feedback.js";
 import withdrawalRoutes from "./routes/withdrawals.js";
 import paystackRoutes from "./routes/paystack.js";
+import subscriptionRoutes from "./routes/subscriptions.js";
 
 dotenv.config();
 
@@ -40,6 +41,7 @@ app.use("/api/businesses", businessRoutes);
 app.use("/api/feedback", feedbackRoutes);
 app.use("/api/withdrawals", withdrawalRoutes);
 app.use("/api/paystack", paystackRoutes);
+app.use("/api/subscriptions", subscriptionRoutes);
 
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok" });

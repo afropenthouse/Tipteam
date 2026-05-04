@@ -53,6 +53,18 @@ export const api = {
     });
     return handleResponse(res);
   },
+
+  async patch<T>(endpoint: string, body?: unknown): Promise<T> {
+    const res = await fetch(`${API_URL}${endpoint}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${getToken()}`,
+      },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    return handleResponse(res);
+  },
 };
 
 export type User = {
@@ -221,6 +233,13 @@ export const walletBalance = async (businessId: string) => {
   return wallet;
 };
 
+export const totalWalletBalance = async () => {
+  const { wallet } = await api.get<{ wallet: { earned: number; withdrawn: number; available: number } }>(
+    "/withdrawals/summary"
+  );
+  return wallet;
+};
+
 export const initializePayment = async (
   email: string,
   amount: number,
@@ -242,4 +261,24 @@ export const initializePayment = async (
 
 export const verifyPayment = async (reference: string) => {
   return api.post<{ success: boolean; amount: number }>("/paystack/verify", { reference });
+};
+
+export const getSubscriptionStatus = async () => {
+  return api.get<{ hasActiveSubscription: boolean; subscription?: any; canCreateBusiness: boolean }>("/subscriptions/status");
+};
+
+export const getSubscriptionPlans = async () => {
+  return api.get<{ plans: any[] }>("/subscriptions/plans");
+};
+
+export const createSubscription = async (planType: string, paystackRef: string) => {
+  return api.post<{ subscription: any }>("/subscriptions", { planType, paystackRef });
+};
+
+export const getUserSubscriptions = async () => {
+  return api.get<{ subscriptions: any[] }>("/subscriptions");
+};
+
+export const cancelSubscription = async (subscriptionId: string) => {
+  return api.patch<{ subscription: any }>(`/subscriptions/${subscriptionId}/cancel`);
 };

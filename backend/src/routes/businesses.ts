@@ -48,6 +48,25 @@ router.post(
         return res.status(400).json({ errors: errors.array() });
       }
 
+      // Check if user has active subscription
+      // Temporary workaround until Prisma client is regenerated
+      const activeSubscription = await prisma.$queryRaw`
+        SELECT * FROM subscriptions 
+        WHERE "userId" = ${req.userId} 
+        AND status = 'ACTIVE'
+        AND "endDate" > ${new Date()}
+        ORDER BY "endDate" DESC
+        LIMIT 1
+      `;
+
+      if (!activeSubscription) {
+        return res.status(403).json({ 
+          error: "Active subscription required to create a business",
+          requiresSubscription: true,
+          message: "You need an active subscription to create a business. Please subscribe to continue."
+        });
+      }
+
       const { name, email, phone, address } = req.body;
 
       const business = await prisma.business.create({

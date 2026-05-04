@@ -8,52 +8,44 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  fullName  String
-  email     String   @unique
-  password  String
-  avatarUrl String?
-  isVerified Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  businesses  Business[]
+  id            String         @id @default(uuid())
+  fullName      String
+  email         String         @unique
+  password      String
+  avatarUrl     String?
+  isVerified    Boolean        @default(false)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  businesses    Business[]
+  subscriptions Subscription[]
   verifications Verification[]
 
   @@map("users")
 }
 
 model Verification {
-  id        String   @id @default(uuid())
+  id        String           @id @default(uuid())
   userId    String
   type      VerificationType
-  token     String?  @unique
+  token     String?          @unique
   code      String?
   expiresAt DateTime
   usedAt    DateTime?
-  createdAt DateTime  @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime         @default(now())
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("verifications")
 }
 
-enum VerificationType {
-  EMAIL_VERIFICATION
-  PASSWORD_RESET
-  WITHDRAWAL_VERIFICATION
-}
-
 model Business {
-  id        String   @id @default(uuid())
-  ownerId   String
-  name      String
-  email     String
-  phone     String
-  address   String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
+  id          String       @id @default(uuid())
+  ownerId     String
+  name        String
+  email       String
+  phone       String
+  address     String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
   owner       User         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   feedbacks   Feedback[]
   withdrawals Withdrawal[]
@@ -62,35 +54,56 @@ model Business {
 }
 
 model Feedback {
-  id         String   @id @default(uuid())
-  businessId String
-  rating     Int?
-  experience String?
-  complaint  String?
-  phone      String?
-  tipAmount  Int      @default(0)
+  id          String   @id @default(uuid())
+  businessId  String
+  rating      Int?
+  experience  String?
+  complaint   String?
+  phone       String?
+  tipAmount   Int      @default(0)
   paystackRef String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   @@map("feedbacks")
 }
 
 model Withdrawal {
-  id         String   @id @default(uuid())
-  businessId String
-  amount     Int
+  id            String           @id @default(uuid())
+  businessId    String
+  amount        Int
   accountNumber String
-  bankName   String
-  status     WithdrawalStatus @default(PENDING)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  bankName      String
+  status        WithdrawalStatus @default(PENDING)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  business      Business         @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   @@map("withdrawals")
+}
+
+model Subscription {
+  id          String             @id @default(uuid())
+  userId      String
+  planType    SubscriptionPlan
+  duration    Int
+  price       Int
+  status      SubscriptionStatus @default(ACTIVE)
+  startDate   DateTime           @default(now())
+  endDate     DateTime
+  paystackRef String?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("subscriptions")
+}
+
+enum VerificationType {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+  WITHDRAWAL_VERIFICATION
 }
 
 enum WithdrawalStatus {
@@ -98,4 +111,17 @@ enum WithdrawalStatus {
   PENDING
   APPROVED
   REJECTED
+}
+
+enum SubscriptionPlan {
+  THREE_MONTHS
+  SIX_MONTHS
+  NINE_MONTHS
+  TWELVE_MONTHS
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
 }

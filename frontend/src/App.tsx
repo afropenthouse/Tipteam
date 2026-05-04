@@ -19,6 +19,7 @@ import BusinessDetail from "./pages/dashboard/BusinessDetail.tsx";
 import Ratings from "./pages/dashboard/Ratings.tsx";
 import Feedback from "./pages/dashboard/Feedback.tsx";
 import WalletPage from "./pages/dashboard/WalletPage.tsx";
+import Subscriptions from "./pages/dashboard/Subscriptions.tsx";
 import Rate from "./pages/customer/Rate.tsx";
 
 const queryClient = new QueryClient();
@@ -46,6 +47,7 @@ const App = () => (
             <Route path="ratings" element={<Ratings />} />
             <Route path="complaints" element={<Feedback />} />
             <Route path="wallet" element={<WalletPage />} />
+            <Route path="subscriptions" element={<Subscriptions />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

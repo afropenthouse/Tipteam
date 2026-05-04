@@ -1,4 +1,4 @@
-import { LayoutDashboard, Store, Star, MessageSquareWarning, Wallet, LogOut, QrCode } from "lucide-react";
+import { LayoutDashboard, Store, Star, MessageSquareWarning, Wallet, Crown, LogOut, QrCode } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   Sidebar,
@@ -13,7 +13,9 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { listBusinesses, signOut, useCurrentUser, useStore } from "@/lib/store";
+import { signOut, useCurrentUser } from "@/lib/store";
+import { listBusinesses } from "@/lib/api";
+import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 
 const mainItems = [
@@ -22,6 +24,7 @@ const mainItems = [
   { title: "Ratings", url: "/dashboard/ratings", icon: Star },
   { title: "Feedback & complaints", url: "/dashboard/complaints", icon: MessageSquareWarning },
   { title: "Wallet", url: "/dashboard/wallet", icon: Wallet },
+  { title: "Subscriptions", url: "/dashboard/subscriptions", icon: Crown },
 ];
 
 export function AppSidebar() {
@@ -30,7 +33,12 @@ export function AppSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const user = useCurrentUser();
-  const businesses = useStore(() => (user ? listBusinesses(user.id) : []));
+  
+  const { data: businesses = [] } = useQuery({
+    queryKey: ["businesses"],
+    queryFn: listBusinesses,
+    enabled: !!user,
+  });
 
   const isActive = (path: string, end = false) =>
     end ? location.pathname === path : location.pathname.startsWith(path);
