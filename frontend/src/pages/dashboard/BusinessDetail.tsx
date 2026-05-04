@@ -127,7 +127,14 @@ export default function BusinessDetail() {
             Customers scan this to leave feedback and tip your team.
           </p>
           <div className="mt-5 flex flex-col items-center gap-4 rounded-xl bg-card p-6">
-            <QRCodeCanvas id="biz-qr" value={rateUrl} size={200} level="H" includeMargin />
+            <div className="relative">
+              <QRCodeCanvas id="biz-qr" value={rateUrl} size={200} level="H" includeMargin />
+              <div className="absolute -bottom-2 left-0 right-0 text-center">
+                <span className="inline-block bg-primary text-primary-foreground text-xs font-medium px-3 py-1 rounded-full">
+                  Scan to give feedback
+                </span>
+              </div>
+            </div>
             <div className="w-full break-all rounded-md bg-muted px-3 py-2 text-center text-xs text-muted-foreground">
               {rateUrl}
             </div>
