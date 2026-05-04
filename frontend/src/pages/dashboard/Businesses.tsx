@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Plus, Store } from "lucide-react";
+import { Plus, Store, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { listBusinesses, useCurrentUser } from "@/lib/store";
 import type { Business } from "@/lib/api";
 
@@ -9,6 +10,7 @@ export default function Businesses() {
   const user = useCurrentUser();
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedBusiness, setSelectedBusiness] = useState<string>("all");
 
   useEffect(() => {
     if (user) {
@@ -27,6 +29,11 @@ export default function Businesses() {
     );
   }
 
+  // Filter businesses based on selection
+  const filteredBusinesses = selectedBusiness === "all" 
+    ? businesses 
+    : businesses.filter(b => b.id === selectedBusiness);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -34,25 +41,48 @@ export default function Businesses() {
           <h1 className="text-2xl font-bold tracking-tight">Businesses</h1>
           <p className="text-sm text-muted-foreground">Manage your locations and their QR codes.</p>
         </div>
-        <Button asChild className="bg-gradient-primary shadow-elegant">
-          <Link to="/dashboard/businesses/new">
-            <Plus className="h-4 w-4" /> Add business
-          </Link>
-        </Button>
+        <div className="flex items-center gap-3">
+          <Select value={selectedBusiness} onValueChange={setSelectedBusiness}>
+            <SelectTrigger className="w-48">
+              <Filter className="h-4 w-4 mr-2" />
+              <SelectValue placeholder="Select business" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Businesses</SelectItem>
+              {businesses.map((business) => (
+                <SelectItem key={business.id} value={business.id}>
+                  {business.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button asChild className="bg-gradient-primary shadow-elegant">
+            <Link to="/dashboard/businesses/new">
+              <Plus className="h-4 w-4" /> Add business
+            </Link>
+          </Button>
+        </div>
       </div>
 
-      {businesses.length === 0 ? (
+      {filteredBusinesses.length === 0 ? (
         <div className="rounded-2xl border border-dashed p-12 text-center">
           <Store className="mx-auto h-10 w-10 text-muted-foreground" />
-          <h2 className="mt-3 font-semibold">No businesses yet</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Add your first to start collecting feedback.</p>
+          <h2 className="mt-3 font-semibold">
+            {selectedBusiness === "all" ? "No businesses yet" : "No businesses found"}
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {selectedBusiness === "all" 
+              ? "Add your first to start collecting feedback."
+              : "Try selecting a different business or create a new one."
+            }
+          </p>
           <Button asChild className="mt-4 bg-gradient-primary">
             <Link to="/dashboard/businesses/new">Create business</Link>
           </Button>
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {businesses.map((b) => (
+            {filteredBusinesses.map((b) => (
             <Link
               key={b.id}
               to={`/dashboard/businesses/${b.id}`}

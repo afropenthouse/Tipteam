@@ -5,7 +5,7 @@ const getToken = () => localStorage.getItem("ttt:token");
 const handleResponse = async (res: Response) => {
   const data = await res.json();
   if (!res.ok) {
-    throw new Error(data.error || "Something went wrong");
+    throw new Error(data.error || data.message || "Something went wrong");
   }
   return data;
 };

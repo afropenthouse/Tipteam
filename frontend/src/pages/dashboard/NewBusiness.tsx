@@ -14,6 +14,16 @@ import { getSubscriptionStatus, getSubscriptionPlans } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 import { initializeSubscriptionPayment, loadPaystackScript } from "@/lib/paystack";
 
+const formatPlanName = (planType: string) => {
+  const planMap: Record<string, string> = {
+    "THREE_MONTHS": "3 Months",
+    "SIX_MONTHS": "6 Months",
+    "NINE_MONTHS": "9 Months",
+    "TWELVE_MONTHS": "12 Months"
+  };
+  return planMap[planType] || planType.replace(/_/g, " ");
+};
+
 export default function NewBusiness() {
   const user = useCurrentUser();
   const navigate = useNavigate();
@@ -66,30 +76,22 @@ export default function NewBusiness() {
       const plan = plansData?.plans.find((p: any) => p.type === selectedPlan);
       if (!plan) throw new Error("Plan not found");
       
-      // Load Paystack script
       await loadPaystackScript();
       
-      // Initialize subscription payment
       const { authorizationUrl, reference } = await initializeSubscriptionPayment(
         user.email, 
         plan.price, 
         selectedPlan
       );
       
-      // Store plan info for after payment
-      localStorage.setItem("pending_subscription", JSON.stringify({
-        planType: selectedPlan,
-        reference,
-        businessForm: form
-      }));
       localStorage.setItem("pending_subscription_plan", selectedPlan);
+      localStorage.setItem("pending_subscription_reference", reference);
       
-      // Redirect to Paystack payment page
       window.location.href = authorizationUrl;
-    } catch (error) {
+    } catch (error: any) {
       toast({ 
         title: "Payment failed", 
-        description: (error as Error).message, 
+        description: error.message || "Failed to initialize payment",
         variant: "destructive" 
       });
       setPaymentLoading(false);
@@ -152,9 +154,8 @@ export default function NewBusiness() {
                         <RadioGroupItem value={plan.type} id={plan.type} />
                         <div className="flex-1">
                           <label htmlFor={plan.type} className="flex items-center justify-between cursor-pointer">
-                            <div>
-                              <div className="font-medium">{plan.type.replace("MONTHS", " MONTHS").replace("THREE", "3").replace("SIX", "6").replace("NINE", "9").replace("TWELVE", "12")}</div>
-                              <div className="text-sm text-muted-foreground">{plan.duration} months</div>
+                            <div className="font-medium">
+                              {formatPlanName(plan.type)}
                             </div>
                             <div className="text-right">
                               <div className="font-bold">₦{plan.priceNGN.toLocaleString()}</div>
@@ -168,19 +169,19 @@ export default function NewBusiness() {
                 </RadioGroup>
               )}
               
-              {selectedPlan && (
-                <div className="bg-muted/50 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-medium">
-                      {plansData?.plans.find((p: any) => p.type === selectedPlan)?.type.replace("MONTHS", " MONTHS").replace("THREE", "3").replace("SIX", "6").replace("NINE", "9").replace("TWELVE", "12")}
-                    </span>
-                    <span className="font-bold">
-                      ₦{plansData?.plans.find((p: any) => p.type === selectedPlan)?.priceNGN.toLocaleString()}
-                    </span>
-                  </div>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    One-time payment for {plansData?.plans.find((p: any) => p.type === selectedPlan)?.duration} months access
-                  </p>
+                {selectedPlan && (
+                  <div className="bg-muted/50 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-medium">
+                        {formatPlanName(selectedPlan)}
+                      </span>
+                      <span className="font-bold">
+                        ₦{plansData?.plans.find((p: any) => p.type === selectedPlan)?.priceNGN.toLocaleString()}
+                      </span>
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      One-time payment for {plansData?.plans.find((p: any) => p.type === selectedPlan)?.duration} months access
+                    </p>
                   
                   <div className="flex gap-2">
                     <Button 
@@ -226,7 +227,7 @@ export default function NewBusiness() {
         <Alert className="mt-4 bg-green-50 border-green-200">
           <Crown className="h-4 w-4 text-green-600" />
           <AlertDescription className="text-green-800">
-            Active subscription: {subscriptionStatus.subscription.planType.replace("MONTHS", " MONTHS").replace("THREE", "3").replace("SIX", "6").replace("NINE", "9").replace("TWELVE", "12")} 
+            Active subscription: {formatPlanName(subscriptionStatus.subscription.planType)} 
             until {new Date(subscriptionStatus.subscription.endDate).toLocaleDateString()}
           </AlertDescription>
         </Alert>

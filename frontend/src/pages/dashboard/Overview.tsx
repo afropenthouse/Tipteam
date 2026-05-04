@@ -1,9 +1,22 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, Star, MessageSquareWarning, Wallet, Store } from "lucide-react";
+import { ArrowRight, Star, MessageSquareWarning, Wallet, Store, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { listBusinesses, listFeedback, useCurrentUser, walletBalance } from "@/lib/store";
 import type { Business, Feedback } from "@/lib/api";
+
+// Utility function to mask phone numbers
+const maskPhoneNumber = (phone: string) => {
+  if (!phone) return '';
+  const cleaned = phone.replace(/\D/g, '');
+  let masked = '';
+  if (cleaned.length <= 3) masked = cleaned;
+  else if (cleaned.length <= 6) masked = cleaned.slice(0, 3) + '***' + cleaned.slice(3);
+  else if (cleaned.length <= 8) masked = cleaned.slice(0, 4) + '****' + cleaned.slice(4);
+  else masked = cleaned.slice(0, 2) + '******' + cleaned.slice(2);
+  return masked;
+};
 
 type WalletData = {
   earned: number;
@@ -19,6 +32,7 @@ export default function Overview() {
   const [feedback, setFeedback] = useState<Feedback[]>([]);
   const [walletData, setWalletData] = useState<Record<string, WalletData>>({});
   const [loading, setLoading] = useState(true);
+  const [selectedBusiness, setSelectedBusiness] = useState<string>("all");
 
   useEffect(() => {
     if (user) {
@@ -53,7 +67,12 @@ export default function Overview() {
     }
   }, [user]);
 
-  const totals = businesses.reduce(
+  // Filter businesses based on selection
+  const filteredBusinesses = selectedBusiness === "all" 
+    ? businesses 
+    : businesses.filter(b => b.id === selectedBusiness);
+
+  const totals = filteredBusinesses.reduce(
     (acc, b) => {
       const wallet = walletData[b.id] || { earned: 0, available: 0 };
       acc.earned += wallet.earned;
@@ -62,11 +81,16 @@ export default function Overview() {
     },
     { earned: 0, available: 0 },
   );
+  // Filter feedback based on selected business
+  const filteredFeedback = selectedBusiness === "all" 
+    ? feedback 
+    : feedback.filter(f => f.businessId === selectedBusiness);
+
   const avg =
-    feedback.length > 0
-      ? (feedback.reduce((s, f) => s + f.rating, 0) / feedback.length).toFixed(1)
+    filteredFeedback.length > 0
+      ? (filteredFeedback.reduce((s, f) => s + f.rating, 0) / filteredFeedback.length).toFixed(1)
       : "—";
-  const feedbackCountByBusiness = feedback.reduce(
+  const feedbackCountByBusiness = filteredFeedback.reduce(
     (acc, item) => {
       acc[item.businessId] = (acc[item.businessId] || 0) + 1;
       return acc;
@@ -98,9 +122,24 @@ export default function Overview() {
             Snapshot of your businesses, feedback and tips.
           </p>
         </div>
-        <Button asChild className="bg-gradient-primary shadow-elegant">
-          <Link to="/dashboard/businesses/new">Add business</Link>
-        </Button>
+        <div className="flex items-center gap-3">
+          <Select value={selectedBusiness} onValueChange={setSelectedBusiness}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Select business" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Businesses</SelectItem>
+              {businesses.map((business) => (
+                <SelectItem key={business.id} value={business.id}>
+                  {business.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button asChild className="bg-gradient-primary shadow-elegant">
+            <Link to="/dashboard/businesses/new">Add business</Link>
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -123,16 +162,18 @@ export default function Overview() {
               View all <ArrowRight className="ml-0.5 inline h-3 w-3" />
             </Link>
           </div>
-          {businesses.length === 0 ? (
+          {filteredBusinesses.length === 0 ? (
             <div className="mt-6 rounded-lg border border-dashed p-8 text-center">
-              <p className="text-sm text-muted-foreground">No businesses yet.</p>
+              <p className="text-sm text-muted-foreground">
+                {selectedBusiness === "all" ? "No businesses yet." : "No businesses found."}
+              </p>
               <Button asChild size="sm" className="mt-3 bg-gradient-primary">
                 <Link to="/dashboard/businesses/new">Create one</Link>
               </Button>
             </div>
           ) : (
             <ul className="mt-4 divide-y">
-              {businesses.slice(0, 5).map((b) => (
+              {filteredBusinesses.slice(0, 5).map((b) => (
                 <li key={b.id} className="flex items-center justify-between py-3">
                   <div>
                     <Link to={`/dashboard/businesses/${b.id}`} className="font-medium hover:text-primary">
@@ -149,11 +190,16 @@ export default function Overview() {
 
         <div className="rounded-xl border bg-card p-6 shadow-card">
           <h2 className="font-semibold">Recent feedback</h2>
-          {feedback.length === 0 ? (
-            <p className="mt-6 text-sm text-muted-foreground">No reviews yet. Share your QR code.</p>
+          {filteredFeedback.length === 0 ? (
+            <p className="mt-6 text-sm text-muted-foreground">
+              {selectedBusiness === "all" 
+                ? "No reviews yet. Share your QR code."
+                : "No reviews for this business yet."
+              }
+            </p>
           ) : (
             <ul className="mt-4 space-y-3">
-              {feedback.slice(0, 5).map((f) => (
+              {filteredFeedback.slice(0, 5).map((f) => (
                 <li key={f.id} className="rounded-lg bg-muted/50 p-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1">
@@ -169,6 +215,11 @@ export default function Overview() {
                     </span>
                   </div>
                   {f.experience && <p className="mt-1 text-sm">{f.experience}</p>}
+                  {f.phone && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Phone: {f.phone}
+                    </p>
+                  )}
                 </li>
               ))}
             </ul>
