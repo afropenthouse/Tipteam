@@ -147,6 +147,10 @@ export const resetPassword = async (email: string, code: string, password: strin
   return api.post<{ message: string }>("/auth/reset-password", { email, code, password });
 };
 
+export const forgotPasswordDirect = async (email: string, password: string) => {
+  return api.post<{ message: string }>("/auth/forgot-password-direct", { email, password });
+};
+
 export const listBusinesses = async (): Promise<Business[]> => {
   const { businesses } = await api.get<{ businesses: Business[] }>("/businesses");
   return businesses;

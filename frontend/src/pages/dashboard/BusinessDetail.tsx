@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
-import { QRCodeSVG } from "qrcode.react";
+import { QRCodeCanvas } from "qrcode.react";
 import { Copy, Download, MapPin, Mail, Phone, Star } from "lucide-react";
+import QRCode from "qrcode";
 import { Button } from "@/components/ui/button";
 import { getBusiness, listFeedback, walletBalance } from "@/lib/store";
 import { toast } from "@/hooks/use-toast";
@@ -59,17 +60,30 @@ export default function BusinessDetail() {
     toast({ title: "Link copied", description: "Share it with your customers." });
   };
 
-  const download = () => {
-    const svg = document.getElementById("biz-qr");
-    if (!svg) return;
-    const xml = new XMLSerializer().serializeToString(svg);
-    const blob = new Blob([xml], { type: "image/svg+xml" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${business.name}-qr.svg`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const download = async () => {
+    try {
+      const canvas = document.getElementById("biz-qr") as HTMLCanvasElement;
+      if (!canvas) return;
+      
+      // Generate high-quality PNG QR code
+      const pngData = await QRCode.toDataURL(rateUrl, {
+        width: 400,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        }
+      });
+      
+      // Create download link
+      const a = document.createElement("a");
+      a.href = pngData;
+      a.download = `${business.name}-qr.png`;
+      a.click();
+    } catch (error) {
+      console.error("Error generating PNG:", error);
+      toast({ title: "Download failed", description: "Could not generate QR code image", variant: "destructive" });
+    }
   };
 
   const avg =
@@ -112,7 +126,7 @@ export default function BusinessDetail() {
             Customers scan this to leave feedback and tip your team.
           </p>
           <div className="mt-5 flex flex-col items-center gap-4 rounded-xl bg-card p-6">
-            <QRCodeSVG id="biz-qr" value={rateUrl} size={200} level="H" includeMargin />
+            <QRCodeCanvas id="biz-qr" value={rateUrl} size={200} level="H" includeMargin />
             <div className="w-full break-all rounded-md bg-muted px-3 py-2 text-center text-xs text-muted-foreground">
               {rateUrl}
             </div>
