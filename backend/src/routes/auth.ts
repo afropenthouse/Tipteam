@@ -240,4 +240,31 @@ router.post(
   }
 );
 
+router.post(
+  "/forgot-password-direct",
+  [body("email").isEmail().withMessage("Valid email is required"), body("password").isLength({ min: 6 }).withMessage("Password must be at least 6 characters")],
+  async (req: Request, res: Response) => {
+    try {
+      const { email, password } = req.body;
+
+      const user = await prisma.user.findUnique({ where: { email } });
+      if (!user) {
+        return res.status(400).json({ error: "User not found" });
+      }
+
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { password: hashedPassword },
+      });
+
+      res.json({ message: "Password reset successfully" });
+    } catch (error) {
+      console.error("Direct password reset error:", error);
+      res.status(500).json({ error: "Failed to reset password" });
+    }
+  }
+);
+
 export default router;

@@ -62,10 +62,7 @@ export default function BusinessDetail() {
 
   const download = async () => {
     try {
-      const canvas = document.getElementById("biz-qr") as HTMLCanvasElement;
-      if (!canvas) return;
-      
-      // Generate high-quality PNG QR code
+      // Generate high-quality PNG QR code directly
       const pngData = await QRCode.toDataURL(rateUrl, {
         width: 400,
         margin: 2,
@@ -79,7 +76,11 @@ export default function BusinessDetail() {
       const a = document.createElement("a");
       a.href = pngData;
       a.download = `${business.name}-qr.png`;
+      document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
+      
+      toast({ title: "Download successful", description: "QR code saved as PNG" });
     } catch (error) {
       console.error("Error generating PNG:", error);
       toast({ title: "Download failed", description: "Could not generate QR code image", variant: "destructive" });
