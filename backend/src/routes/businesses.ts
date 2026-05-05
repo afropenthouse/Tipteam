@@ -191,7 +191,7 @@ router.get("/public/:id", async (req: AuthRequest, res: Response) => {
 // Get menu by publicId (public - no auth required for QR code access)
 router.get("/menu/:publicId", async (req: AuthRequest, res: Response) => {
   try {
-    const { publicId } = req.params;
+    const publicId = Array.isArray(req.params.publicId) ? req.params.publicId[0] : req.params.publicId;
 
     const menu = await prisma.menu.findFirst({
       where: { publicId },

@@ -16,6 +16,7 @@ export default function BusinessDetail() {
   const [feedback, setFeedback] = useState<Feedback[]>([]);
   const [wallet, setWallet] = useState({ earned: 0, available: 0, withdrawn: 0 });
   const [loading, setLoading] = useState(true);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   useEffect(() => {
     if (!id) return;
