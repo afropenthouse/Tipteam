@@ -177,6 +177,16 @@ export const getBusiness = async (id: string): Promise<Business | undefined> => 
   return business;
 };
 
+export const getPublicBusiness = async (id: string): Promise<Business | undefined> => {
+  const response = await fetch(`${API_URL}/businesses/public/${id}`);
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || "Business not found");
+  }
+  const { business } = await response.json();
+  return business;
+};
+
 export const createBusiness = async (data: Omit<Business, "id" | "ownerId" | "createdAt">): Promise<Business> => {
   const { business } = await api.post<{ business: Business }>("/businesses", data);
   return business;

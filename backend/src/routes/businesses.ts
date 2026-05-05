@@ -161,6 +161,33 @@ router.delete("/:id", authenticate, async (req: AuthRequest, res: Response) => {
   }
 });
 
+// Get business by id (public - no auth required for rating link access)
+router.get("/public/:id", async (req: AuthRequest, res: Response) => {
+  try {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+
+    const business = await prisma.business.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        address: true,
+        createdAt: true,
+      }
+    });
+
+    if (!business) {
+      return res.status(404).json({ error: "Business not found" });
+    }
+
+    res.json({ business });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to get business" });
+  }
+});
+
 // Get menu by publicId (public - no auth required for QR code access)
 router.get("/menu/:publicId", async (req: AuthRequest, res: Response) => {
   try {

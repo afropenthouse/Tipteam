@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import {
   listBusinesses,
   getBusiness,
+  getPublicBusiness,
   addFeedback,
   initializePayment,
   verifyPayment,
@@ -49,7 +50,7 @@ export default function Rate() {
       setLoading(false);
       return;
     }
-    getBusiness(businessId)
+    getPublicBusiness(businessId)
       .then((biz) => setBusiness(biz || null))
       .catch(console.error)
       .finally(() => setLoading(false));
