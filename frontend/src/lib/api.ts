@@ -178,13 +178,31 @@ export const getBusiness = async (id: string): Promise<Business | undefined> => 
 };
 
 export const getPublicBusiness = async (id: string): Promise<Business | undefined> => {
-  const response = await fetch(`${API_URL}/businesses/public/${id}`);
+  const response = await fetch(`${API_URL}/businesses/public/${id}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+  
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || "Business not found");
+    let errorMessage = "Business not found";
+    try {
+      const error = await response.json();
+      errorMessage = error.error || errorMessage;
+    } catch (e) {
+      // If response is not JSON, use status text
+      errorMessage = response.statusText || errorMessage;
+    }
+    throw new Error(errorMessage);
   }
-  const { business } = await response.json();
-  return business;
+  
+  try {
+    const { business } = await response.json();
+    return business;
+  } catch (e) {
+    throw new Error("Invalid response from server");
+  }
 };
 
 export const createBusiness = async (data: Omit<Business, "id" | "ownerId" | "createdAt">): Promise<Business> => {
