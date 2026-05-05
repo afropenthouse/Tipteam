@@ -143,9 +143,9 @@ export default function BusinessDetail() {
           </p>
           <div className="mt-5 flex flex-col items-center gap-4 rounded-xl bg-card p-6">
             <div className="relative">
-              <div className="absolute -top-6 left-0 right-0 text-center z-10">
+              <div className="absolute -top-6 left-0 right-0 flex justify-center z-10">
                 <span className="inline-block text-black text-sm font-bold px-4 py-2 whitespace-nowrap text-center">
-                  Scan to give feedback/Complain
+                  Scan to give feedback/Complaint
                 </span>
               </div>
               <QRCodeCanvas id="biz-qr" value={rateUrl} size={200} level="H" includeMargin />

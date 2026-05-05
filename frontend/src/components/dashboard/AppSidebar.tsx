@@ -23,7 +23,7 @@ const mainItems = [
   { title: "Businesses", url: "/dashboard/businesses", icon: Store },
   { title: "Menu QR Generator", url: "/dashboard/menu-qr-generator", icon: QrCode },
   { title: "Ratings", url: "/dashboard/ratings", icon: Star },
-  { title: "Feedback & complaints", url: "/dashboard/complaints", icon: MessageSquareWarning },
+  { title: "Feedback & Complaints", url: "/dashboard/complaints", icon: MessageSquareWarning },
   { title: "Wallet", url: "/dashboard/wallet", icon: Wallet },
   { title: "Subscriptions", url: "/dashboard/subscriptions", icon: Crown },
 ];
