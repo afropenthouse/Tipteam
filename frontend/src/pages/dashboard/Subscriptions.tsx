@@ -259,7 +259,7 @@ const Subscriptions = () => {
                 {plans.map((plan, index) => {
                   const isSelected = selectedPlan === plan.type;
                   const monthlyPrice = Math.round(plan.priceNGN / plan.duration);
-                  const isPopular = index === 1; // Make second plan popular
+                  const isPopular = plan.duration === 9; // Make 9-month plan popular
                   
                   return (
                     <Card
@@ -310,6 +310,12 @@ const Subscriptions = () => {
                             <Check className="w-4 h-4 text-green-500 mr-2" />
                             {plan.duration} months access
                           </div>
+                          {(plan.duration === 9 || plan.duration === 12) && (
+                            <div className="flex items-center text-sm text-gray-600">
+                              <Check className="w-4 h-4 text-green-500 mr-2" />
+                              Unlimited business
+                            </div>
+                          )}
                           <div className="flex items-center text-sm text-gray-600">
                             <Check className="w-4 h-4 text-green-500 mr-2" />
                             Premium features

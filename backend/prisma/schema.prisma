@@ -49,8 +49,22 @@ model Business {
   owner       User         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   feedbacks   Feedback[]
   withdrawals Withdrawal[]
+  menus       Menu[]
 
   @@map("businesses")
+}
+
+model Menu {
+  id          String       @id @default(uuid())
+  businessId  String
+  name        String
+  cloudinaryUrl String
+  publicId    String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  business    Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@map("menus")
 }
 
 model Feedback {
@@ -75,7 +89,9 @@ model Withdrawal {
   amount        Int
   accountNumber String
   bankName      String
-  status        WithdrawalStatus @default(PENDING)
+  bankCode      String?
+  accountName   String?
+  status        WithdrawalStatus @default(COMPLETED)
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
   business      Business         @relation(fields: [businessId], references: [id], onDelete: Cascade)
@@ -107,7 +123,7 @@ enum VerificationType {
 }
 
 enum WithdrawalStatus {
-  AWAITING_CONFIRMATION
+  COMPLETED
   PENDING
   APPROVED
   REJECTED

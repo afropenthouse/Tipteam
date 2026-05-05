@@ -2,33 +2,84 @@ import { Router, Response } from "express";
 import { body, validationResult } from "express-validator";
 import prisma from "../lib/prisma.js";
 import { authenticate, AuthRequest } from "../middleware/auth.js";
-import { generateVerificationCode, generateVerificationToken } from "../lib/jwt.js";
-import { sendWithdrawalVerificationEmail } from "../lib/email.js";
 
 const router = Router();
 
-const getWalletSummary = async (businessId: string) => {
-  const [feedbacks, withdrawals] = await Promise.all([
-    prisma.feedback.findMany({ where: { businessId } }),
-    prisma.withdrawal.findMany({
-      where: { businessId },
-      orderBy: { createdAt: "desc" },
-    }),
-  ]);
+const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
 
-  const earned = feedbacks.reduce((sum, f) => sum + (f.tipAmount || 0), 0);
-  const withdrawn = withdrawals
-    .filter((w) => w.status === "PENDING" || w.status === "APPROVED")
-    .reduce((sum, w) => sum + w.amount, 0);
-
-  return {
-    wallet: {
-      earned,
-      withdrawn,
-      available: Math.max(0, earned - withdrawn),
+async function psRequest(method: string, path: string, body?: unknown) {
+  if (!PAYSTACK_SECRET) throw new Error("PAYSTACK_SECRET_KEY missing");
+  const res = await fetch(`https://api.paystack.co${path}`, {
+    method,
+    headers: {
+      Authorization: `Bearer ${PAYSTACK_SECRET}`,
+      "Content-Type": "application/json",
     },
-    withdrawals,
-  };
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json?.message || `Paystack ${method} ${path} failed`);
+  return json;
+}
+
+const BANK_CODES: Record<string, string> = {
+  GTBank: "058",
+  "Access Bank": "044",
+  "Zenith Bank": "057",
+  UBA: "033",
+  "First Bank": "011",
+  "Fidelity Bank": "070",
+  "Sterling Bank": "032",
+  "Union Bank": "032",
+  "Wema Bank": "035",
+  "Polaris Bank": "076",
+  Ecobank: "050",
+  "Stanbic IBTC": "221",
+};
+
+const getWalletSummary = async (businessId: string) => {
+  try {
+    const [feedbacks, withdrawals] = await Promise.all([
+      prisma.feedback.findMany({ where: { businessId } }),
+      prisma.withdrawal.findMany({
+        where: { businessId },
+        orderBy: { createdAt: "desc" },
+      }),
+    ]);
+
+    const earned = feedbacks.reduce((sum, f) => sum + (f.tipAmount || 0), 0);
+    const withdrawn = withdrawals.reduce((sum, w) => sum + w.amount, 0);
+
+    return {
+      wallet: {
+        earned,
+        withdrawn,
+        available: Math.max(0, earned - withdrawn),
+      },
+      withdrawals,
+    };
+  } catch (error) {
+    console.error(`getWalletSummary failed for business ${businessId}:`, error);
+    // Fallback: only count COMPLETED withdrawals if filter fails due to status mismatch
+    try {
+      const [feedbacks, safeWithdrawals] = await Promise.all([
+        prisma.feedback.findMany({ where: { businessId } }),
+        prisma.withdrawal.findMany({
+          where: { businessId, status: "COMPLETED" },
+          orderBy: { createdAt: "desc" },
+        }),
+      ]);
+      const earned = feedbacks.reduce((sum, f) => sum + (f.tipAmount || 0), 0);
+      const withdrawn = safeWithdrawals.reduce((sum, w) => sum + w.amount, 0);
+      return {
+        wallet: { earned, withdrawn, available: Math.max(0, earned - withdrawn) },
+        withdrawals: safeWithdrawals,
+      };
+    } catch (fallbackError) {
+      console.error(`Fallback also failed for ${businessId}:`, fallbackError);
+      return { wallet: { earned: 0, withdrawn: 0, available: 0 }, withdrawals: [] };
+    }
+  }
 };
 
 router.get("/", authenticate, async (req: AuthRequest, res: Response) => {
@@ -52,7 +103,6 @@ router.get("/", authenticate, async (req: AuthRequest, res: Response) => {
   }
 });
 
-// New aggregated wallet summary across all businesses
 router.get("/summary", authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const businesses = await prisma.business.findMany({
@@ -68,10 +118,7 @@ router.get("/summary", authenticate, async (req: AuthRequest, res: Response) => 
     });
 
     const withdrawnAgg = await prisma.withdrawal.aggregate({
-      where: {
-        businessId: { in: businessIds },
-        status: { in: ["PENDING", "APPROVED"] },
-      },
+      where: { businessId: { in: businessIds } },
       _sum: { amount: true },
     });
 
@@ -82,13 +129,14 @@ router.get("/summary", authenticate, async (req: AuthRequest, res: Response) => 
     res.json({ wallet: { earned, withdrawn, available } });
   } catch (error) {
     console.error("Wallet summary error:", error);
-    res.status(500).json({ error: "Failed to get wallet summary" });
+    // Return safe empty wallet
+    res.json({ wallet: { earned: 0, withdrawn: 0, available: 0 } });
   }
 });
 
 router.get("/business/:businessId", authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const businessId = Array.isArray(req.params.businessId) ? req.params.businessId[0] : req.params.businessId;
+    const businessId = typeof req.params.businessId === "string" ? req.params.businessId : req.params.businessId[0];
     const business = await prisma.business.findFirst({
       where: { id: businessId, ownerId: req.userId },
     });
@@ -100,7 +148,9 @@ router.get("/business/:businessId", authenticate, async (req: AuthRequest, res: 
     const summary = await getWalletSummary(businessId);
     res.json(summary);
   } catch (error) {
-    res.status(500).json({ error: "Failed to get wallet" });
+    console.error("Wallet fetch error:", error);
+    // Return safe empty wallet to avoid UI errors
+    res.json({ wallet: { earned: 0, withdrawn: 0, available: 0 }, withdrawals: [] });
   }
 });
 
@@ -117,6 +167,7 @@ router.post(
       .isNumeric()
       .withMessage("Account number must contain only numbers"),
     body("bankName").notEmpty().withMessage("Bank name is required"),
+    body("bankCode").optional().isString(),
   ],
   async (req: AuthRequest, res: Response) => {
     try {
@@ -125,7 +176,7 @@ router.post(
         return res.status(400).json({ error: errors.array()[0]?.msg || "Invalid withdrawal details" });
       }
 
-      const { businessId, amount, accountNumber, bankName } = req.body;
+      const { businessId, amount, accountNumber, bankName, bankCode } = req.body;
 
       const business = await prisma.business.findFirst({
         where: { id: businessId, ownerId: req.userId },
@@ -147,50 +198,93 @@ router.post(
         return res.status(400).json({ error: "Amount exceeds available balance" });
       }
 
-      await prisma.verification.updateMany({
-        where: {
-          userId: business.owner.id,
-          type: "WITHDRAWAL_VERIFICATION",
-          usedAt: null,
-        },
-        data: {
-          usedAt: new Date(),
-        },
+      // Resolve account name via Paystack if we have bankCode, otherwise fall back to owner name
+      let accountName: string | null = null;
+      let actualBankCode = bankCode;
+
+      try {
+        if (!actualBankCode) {
+          // Try to look up bank code from our mapping using bankName
+          const codeMap: Record<string, string> = {
+            GTBank: "058",
+            "Access Bank": "044",
+            "Zenith Bank": "057",
+            UBA: "033",
+            "First Bank": "011",
+            "Fidelity Bank": "070",
+            "Sterling Bank": "032",
+            "Union Bank": "032",
+            "Wema Bank": "035",
+            "Polaris Bank": "076",
+            Ecobank: "050",
+            "Stanbic IBTC": "221",
+          };
+          actualBankCode = codeMap[bankName];
+        }
+
+        if (actualBankCode) {
+          const resolveRes = await psRequest("GET", `/bank/resolve?account_number=${accountNumber}&bank_code=${actualBankCode}`);
+          accountName = resolveRes.data?.account_name || null;
+        }
+      } catch (resolveErr: any) {
+        console.warn("Account resolution failed:", resolveErr.message);
+      }
+
+      if (!accountName) {
+        accountName = business.owner.fullName || "Recipient";
+      }
+
+      if (!actualBankCode) {
+        return res.status(400).json({ error: "Unable to determine bank code. Please select a supported bank." });
+      }
+
+      // Create transfer recipient
+      const recipientRes = await psRequest("POST", "/transferrecipient", {
+        type: "nuban",
+        name: accountName,
+        account_number: accountNumber,
+        bank_code: actualBankCode,
+        currency: "NGN",
       });
 
+      const recipientCode = recipientRes.data?.recipient_code;
+      if (!recipientCode) {
+        return res.status(500).json({ error: "Failed to create transfer recipient" });
+      }
+
+      // Initiate transfer
+      const transferRes = await psRequest("POST", "/transfer", {
+        source: "balance",
+        amount: amount * 100,
+        recipient: recipientCode,
+        reason: `Withdrawal for ${business.name}`,
+      });
+
+      if (!transferRes.status) {
+        return res.status(500).json({ error: transferRes.message || "Transfer failed" });
+      }
+
+      // Record withdrawal
       const withdrawal = await prisma.withdrawal.create({
         data: {
           businessId,
           amount,
           accountNumber,
           bankName,
-          status: "AWAITING_CONFIRMATION",
+          bankCode: actualBankCode,
+          accountName,
+          status: "COMPLETED",
         },
-      });
-
-      const code = generateVerificationCode();
-      await prisma.verification.create({
-        data: {
-          userId: business.owner.id,
-          type: "WITHDRAWAL_VERIFICATION",
-          token: generateVerificationToken(),
-          code,
-          expiresAt: new Date(Date.now() + 15 * 60 * 1000),
-        },
-      });
-
-      await sendWithdrawalVerificationEmail(business.owner.email, business.owner.fullName, code, {
-        amount,
-        businessName: business.name,
-        accountNumber,
       });
 
       res.status(201).json({
-        message: "A verification code has been sent to your email",
-        withdrawalId: withdrawal.id,
+        message: "Withdrawal successful",
+        withdrawal,
+        transfer: transferRes.data,
       });
-    } catch (error) {
-      res.status(500).json({ error: "Failed to request withdrawal" });
+    } catch (error: any) {
+      console.error("Withdrawal error:", error);
+      res.status(500).json({ error: error.message || "Failed to process withdrawal" });
     }
   }
 );
@@ -198,83 +292,8 @@ router.post(
 router.post(
   "/confirm",
   authenticate,
-  [
-    body("withdrawalId").notEmpty().withMessage("Withdrawal ID is required"),
-    body("code").trim().notEmpty().withMessage("Verification code is required"),
-  ],
   async (req: AuthRequest, res: Response) => {
-    try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        return res.status(400).json({ error: errors.array()[0]?.msg || "Invalid confirmation details" });
-      }
-
-      const { withdrawalId, code } = req.body;
-
-      const withdrawal = await prisma.withdrawal.findFirst({
-        where: {
-          id: withdrawalId,
-          status: "AWAITING_CONFIRMATION",
-          business: { ownerId: req.userId },
-        },
-        include: {
-          business: {
-            select: { id: true, ownerId: true },
-          },
-        },
-      });
-
-      if (!withdrawal) {
-        return res.status(404).json({ error: "Withdrawal request not found" });
-      }
-
-      const verification = await prisma.verification.findFirst({
-        where: {
-          userId: req.userId,
-          type: "WITHDRAWAL_VERIFICATION",
-          code,
-          usedAt: null,
-          expiresAt: { gt: new Date() },
-        },
-        orderBy: { createdAt: "desc" },
-      });
-
-      if (!verification) {
-        return res.status(400).json({ error: "Invalid or expired verification code" });
-      }
-
-      const summary = await getWalletSummary(withdrawal.businessId);
-      if (withdrawal.amount > summary.wallet.available) {
-        await prisma.withdrawal.update({
-          where: { id: withdrawal.id },
-          data: { status: "REJECTED" },
-        });
-
-        await prisma.verification.update({
-          where: { id: verification.id },
-          data: { usedAt: new Date() },
-        });
-
-        return res.status(400).json({ error: "Amount exceeds available balance" });
-      }
-
-      const confirmedWithdrawal = await prisma.withdrawal.update({
-        where: { id: withdrawal.id },
-        data: { status: "PENDING" },
-      });
-
-      await prisma.verification.update({
-        where: { id: verification.id },
-        data: { usedAt: new Date() },
-      });
-
-      res.json({
-        message: "Withdrawal submitted successfully",
-        withdrawal: confirmedWithdrawal,
-      });
-    } catch (error) {
-      res.status(500).json({ error: "Failed to confirm withdrawal" });
-    }
+    res.status(501).json({ error: "Endpoint disabled" });
   }
 );
 

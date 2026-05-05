@@ -1,44 +1,33 @@
 import { Router, Request, Response } from "express";
 import { body, validationResult } from "express-validator";
-import { createRequire } from "module";
 import prisma from "../lib/prisma.js";
 import { authenticate, AuthRequest } from "../middleware/auth.js";
 
 const router = Router();
-const paystackSecretKey = process.env.PAYSTACK_SECRET_KEY;
-const require = createRequire(import.meta.url);
-const paystackModule = require("paystack-sdk") as {
-  default?: new (key: string) => PaystackClient;
-  Paystack?: new (key: string) => PaystackClient;
-};
 
-type PaystackClient = {
-  transaction: {
-    initialize(data: {
-      email: string;
-      amount: string;
-      currency: string;
-      callback_url: string;
-      metadata: Record<string, unknown>;
-    }): Promise<{
-      status: boolean;
-      message: string;
-      data?: {
-        authorization_url?: string;
-        reference: string;
-      } | null;
-    }>;
-    verify(reference: string): Promise<{
-      status: boolean;
-      message: string;
-      data?: {
-        amount: number;
-        status: string;
-        metadata?: Record<string, unknown>;
-      } | null;
-    }>;
-  };
-};
+async function psRequest(method: string, path: string, body?: Record<string, unknown>) {
+  const baseUrl = "https://api.paystack.co";
+  const sec = process.env.PAYSTACK_SECRET_KEY;
+  if (!sec) throw new Error("PAYSTACK_SECRET_KEY missing");
+
+  const res = await fetch(`${baseUrl}${path}`, {
+    method,
+    headers: {
+      Authorization: `Bearer ${sec}`,
+      "Content-Type": "application/json",
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+
+  const json = await res.json();
+  if (!res.ok) {
+    const err = new Error(json?.message || `Paystack API ${method} ${path} failed`);
+    // @ts-ignore
+    err.data = json;
+    throw err;
+  }
+  return json;
+}
 
 type PaymentMetadata = {
   businessId?: string;
@@ -47,19 +36,6 @@ type PaymentMetadata = {
   phone?: string;
   teamNumber?: string;
   payerEmail?: string;
-};
-
-const getPaystackClient = () => {
-  if (!paystackSecretKey) {
-    throw new Error("PAYSTACK_SECRET_KEY is not configured");
-  }
-
-  const PaystackCtor = paystackModule.default || paystackModule.Paystack;
-  if (!PaystackCtor) {
-    throw new Error("Unable to load Paystack SDK constructor");
-  }
-
-  return new PaystackCtor(paystackSecretKey);
 };
 
 const getCallbackUrl = (req: Request, businessId: string) => {
@@ -96,21 +72,24 @@ router.post(
         return res.status(404).json({ error: "Business not found" });
       }
 
-      const paystack = getPaystackClient();
-      const transaction = await paystack.transaction.initialize({
-        email,
-        amount: String(Number(amount) * 100),
-        currency: "NGN",
-        callback_url: getCallbackUrl(req, businessId),
-        metadata: {
-          businessId,
-          rating,
-          experience: experience?.trim() || "",
-          phone: phone?.trim() || "",
-          teamNumber: teamNumber?.trim() || "",
-          payerEmail: email,
-        },
-      });
+      const transaction = await psRequest(
+        "POST",
+        "/transaction/initialize",
+        {
+          email,
+          amount: Number(amount) * 100,
+          currency: "NGN",
+          callback_url: getCallbackUrl(req, businessId),
+          metadata: {
+            businessId,
+            rating,
+            experience: experience?.trim() || "",
+            phone: phone?.trim() || "",
+            teamNumber: teamNumber?.trim() || "",
+            payerEmail: email,
+          },
+        }
+      );
 
       if (!transaction.status || !transaction.data?.authorization_url) {
         return res.status(400).json({ error: transaction.message || "Failed to initialize payment" });
@@ -120,9 +99,9 @@ router.post(
         authorizationUrl: transaction.data.authorization_url,
         reference: transaction.data.reference,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Paystack init error:", error);
-      res.status(500).json({ error: "Failed to initialize payment" });
+      res.status(500).json({ error: error?.message || "Failed to initialize payment" });
     }
   }
 );
@@ -152,8 +131,7 @@ router.post(
         });
       }
 
-      const paystack = getPaystackClient();
-      const transaction = await paystack.transaction.verify(reference);
+      const transaction = await psRequest("GET", `/transaction/verify/${reference}`);
 
       if (!transaction.status) {
         return res.status(400).json({ error: transaction.message || "Unable to verify payment" });
@@ -199,9 +177,9 @@ router.post(
       });
 
       res.json({ success: true, amount, feedback });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Paystack verify error:", error);
-      res.status(500).json({ error: "Failed to verify payment" });
+      res.status(500).json({ error: error?.message || "Failed to verify payment" });
     }
   }
 );
@@ -224,18 +202,21 @@ router.post(
 
       const { email, amount, planType } = req.body;
 
-      const paystack = getPaystackClient();
-      const transaction = await paystack.transaction.initialize({
-        email,
-        amount: String(amount),
-        currency: "NGN",
-        callback_url: `${process.env.FRONTEND_URL || "http://localhost:5173"}/dashboard/subscriptions`,
-        metadata: {
-          planType,
-          payerEmail: email,
-          type: "subscription",
-        },
-      });
+      const transaction = await psRequest(
+        "POST",
+        "/transaction/initialize",
+        {
+          email,
+          amount,
+          currency: "NGN",
+          callback_url: `${process.env.FRONTEND_URL || "http://localhost:5173"}/dashboard/subscriptions`,
+          metadata: {
+            planType,
+            payerEmail: email,
+            type: "subscription",
+          },
+        }
+      );
 
       if (!transaction.status || !transaction.data?.authorization_url) {
         return res.status(400).json({ error: transaction.message || "Failed to initialize subscription payment" });
@@ -245,9 +226,9 @@ router.post(
         authorizationUrl: transaction.data.authorization_url,
         reference: transaction.data.reference,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Paystack subscription init error:", error);
-      res.status(500).json({ error: "Failed to initialize subscription payment" });
+      res.status(500).json({ error: error?.message || "Failed to initialize subscription payment" });
     }
   }
 );
@@ -266,8 +247,7 @@ router.post(
 
       const { reference, planType: requestPlanType } = req.body;
 
-      const paystack = getPaystackClient();
-      const transaction = await paystack.transaction.verify(reference);
+      const transaction = await psRequest("GET", `/transaction/verify/${reference}`);
 
       if (!transaction.status) {
         return res.status(400).json({ error: transaction.message || "Unable to verify payment" });
@@ -282,16 +262,14 @@ router.post(
         return res.status(400).json({ success: false, error: "Payment not successful" });
       }
 
-      // Get planType from request body or transaction metadata
       const metadata = (transactionData.metadata || {}) as { planType?: string };
       const planType = requestPlanType || metadata.planType;
 
-      // Create subscription after successful payment
       const pricing = {
         THREE_MONTHS: { duration: 3, price: 3000000 },
         SIX_MONTHS: { duration: 6, price: 6000000 },
         NINE_MONTHS: { duration: 9, price: 9000000 },
-        TWELVE_MONTHS: { duration: 12, price: 12000000 }
+        TWELVE_MONTHS: { duration: 12, price: 12000000 },
       };
 
       const plan = pricing[planType as keyof typeof pricing];
@@ -309,7 +287,6 @@ router.post(
       const endDate = new Date(startDate);
       endDate.setMonth(endDate.getMonth() + plan.duration);
 
-      // Create subscription
       const subscription = await prisma.subscription.create({
         data: {
           userId,
@@ -324,11 +301,126 @@ router.post(
       });
 
       res.json({ success: true, subscription });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Paystack subscription verify error:", error);
-      res.status(500).json({ error: "Failed to verify subscription payment" });
+      res.status(500).json({ error: error?.message || "Failed to verify subscription payment" });
     }
   }
 );
+
+// Bank name to Paystack bank code mapping for Nigerian banks
+const BANK_CODES: Record<string, string> = {
+  GTBank: "058",
+  "Access Bank": "044",
+  "Zenith Bank": "057",
+  UBA: "033",
+  "First Bank": "011",
+  "Fidelity Bank": "070",
+  "Sterling Bank": "032",
+  "Union Bank": "032",
+  "Wema Bank": "035",
+  "Polaris Bank": "076",
+  Ecobank: "050",
+  "Stanbic IBTC": "221",
+};
+
+// Get all Nigerian banks
+router.get("/banks", async (_req, res) => {
+  try {
+    const result = await psRequest("GET", "/bank?country=nigeria");
+    res.json({ banks: result.data });
+  } catch (error: any) {
+    console.error("Paystack banks error:", error);
+    res.status(500).json({ error: error?.message || "Failed to fetch banks" });
+  }
+});
+
+// Resolve Nigerian bank account number to account name (public - no auth)
+router.get("/resolve-account", async (req, res) => {
+  try {
+    const { bankCode, accountNumber } = req.query;
+
+    if (!bankCode || typeof bankCode !== "string") {
+      return res.status(400).json({ error: "bankCode query parameter is required" });
+    }
+
+    if (!accountNumber || typeof accountNumber !== "string") {
+      return res.status(400).json({ error: "accountNumber query parameter is required" });
+    }
+
+    if (!/^\d{10}$/.test(accountNumber)) {
+      return res.status(400).json({ error: "accountNumber must be a 10-digit number" });
+    }
+
+    const result = await psRequest("GET", `/bank/resolve?account_number=${accountNumber}&bank_code=${bankCode}`);
+
+    res.json({
+      accountName: result.data.account_name,
+      accountNumber: result.data.account_number,
+      bankCode,
+    });
+  } catch (error: any) {
+    console.error("Paystack resolve account error:", error);
+    const data = error?.data || {};
+    const msg = data?.message || "Unable to resolve account";
+    if (msg && msg.toLowerCase().includes("not found")) {
+      return res.status(400).json({ error: "Account not found. Please check the account number and try again." });
+    }
+    res.status(500).json({ error: error?.message || "Failed to resolve account" });
+  }
+});
+
+// Create transfer recipient (authenticated)
+router.post("/transferrecipient", authenticate, async (req, res) => {
+  try {
+    const { account_number, account_bank, name, type = "nuban", currency = "NGN" } = req.body;
+
+    if (!account_number || !account_bank || !name) {
+      return res.status(400).json({ error: "account_number, account_bank, and name are required" });
+    }
+
+    const result = await psRequest("POST", "/transferrecipient", {
+      type,
+      currency,
+      name,
+      account_number,
+      bank: {
+        account_number,
+        bank_code: account_bank,
+      },
+    });
+
+    res.json({
+      recipient_code: result.data.recipient_code,
+      ...result.data,
+    });
+  } catch (error: any) {
+    console.error("Paystack transfer recipient error:", error);
+    res.status(500).json({ error: error?.message || "Failed to create transfer recipient" });
+  }
+});
+
+// Initiate transfer (authenticated)
+router.post("/transfer", authenticate, async (req, res) => {
+  try {
+    const { amount, recipient_code, reason } = req.body;
+
+    if (!amount || !recipient_code) {
+      return res.status(400).json({ error: "amount and recipient_code are required" });
+    }
+
+    const result = await psRequest("POST", "/transfer", {
+      source: "balance",
+      amount: Number(amount) * 100,
+      recipient: recipient_code,
+      reason,
+    });
+
+    res.json(result.data);
+  } catch (error: any) {
+    console.error("Paystack transfer error:", error);
+    res.status(500).json({ error: error?.message || "Failed to initiate transfer" });
+  }
+});
 
 export default router;

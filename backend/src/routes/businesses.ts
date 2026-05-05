@@ -1,9 +1,26 @@
 import { Router, Response } from "express";
 import { body, validationResult } from "express-validator";
+import multer from "multer";
 import prisma from "../lib/prisma.js";
 import { authenticate, AuthRequest } from "../middleware/auth.js";
+import cloudinary from "../lib/cloudinary.js";
 
 const router = Router();
+
+// Configure multer for file uploads
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === 'application/pdf') {
+      cb(null, true);
+    } else {
+      cb(new Error('Only PDF files are allowed'));
+    }
+  }
+});
 
 router.get("/", authenticate, async (req: AuthRequest, res: Response) => {
   try {
@@ -141,6 +158,154 @@ router.delete("/:id", authenticate, async (req: AuthRequest, res: Response) => {
     res.json({ message: "Business deleted" });
   } catch (error) {
     res.status(500).json({ error: "Failed to delete business" });
+  }
+});
+
+// Get menu by publicId (public - no auth required for QR code access)
+router.get("/menu/:publicId", async (req: AuthRequest, res: Response) => {
+  try {
+    const { publicId } = req.params;
+
+    const menu = await prisma.menu.findFirst({
+      where: { publicId },
+      include: {
+        business: {
+          select: {
+            name: true,
+            email: true,
+            phone: true,
+            address: true
+          }
+        }
+      }
+    });
+
+    if (!menu) {
+      return res.status(404).json({ error: "Menu not found" });
+    }
+
+    res.json({ menu });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to get menu" });
+  }
+});
+
+// Get all menus for a business
+router.get("/:id/menus", authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    
+    const business = await prisma.business.findFirst({
+      where: { id, ownerId: req.userId },
+      include: { menus: { orderBy: { createdAt: 'desc' } } }
+    });
+
+    if (!business) {
+      return res.status(404).json({ error: "Business not found" });
+    }
+
+    res.json({ menus: business.menus });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to get menus" });
+  }
+});
+
+// Upload menu PDF and generate QR code
+router.post("/:id/menus", authenticate, upload.single('menu'), async (req: AuthRequest, res: Response) => {
+  try {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const { name } = req.body;
+    
+    const existing = await prisma.business.findFirst({
+      where: { id, ownerId: req.userId },
+    });
+
+    if (!existing) {
+      return res.status(404).json({ error: "Business not found" });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
+
+    // Upload PDF to Cloudinary
+    const result = await new Promise((resolve, reject) => {
+      cloudinary.uploader.upload_stream(
+        {
+          resource_type: 'raw',
+          folder: 'business-menus',
+          public_id: `${id}-menu-${Date.now()}`,
+          format: 'pdf',
+        },
+        (error, result) => {
+          if (error) reject(error);
+          else resolve(result);
+        }
+      ).end(req.file!.buffer);
+    });
+
+    // Use custom domain URL instead of direct Cloudinary URL
+    const cloudinaryUrl = (result as any).secure_url;
+    const publicId = (result as any).public_id;
+    const customMenuUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/menu/${publicId}`;
+
+    const menu = await prisma.menu.create({
+      data: {
+        businessId: id,
+        name: name || 'Menu',
+        cloudinaryUrl,
+        publicId,
+      },
+    });
+
+    res.json({ 
+      message: "Menu uploaded successfully",
+      menu,
+      menuUrl: customMenuUrl
+    });
+  } catch (error) {
+    console.error('Menu upload error:', error);
+    res.status(500).json({ error: "Failed to upload menu" });
+  }
+});
+
+// Delete a menu
+router.delete("/:id/menus/:menuId", authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const businessId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const menuId = Array.isArray(req.params.menuId) ? req.params.menuId[0] : req.params.menuId;
+    
+    const business = await prisma.business.findFirst({
+      where: { id: businessId, ownerId: req.userId },
+    });
+
+    if (!business) {
+      return res.status(404).json({ error: "Business not found" });
+    }
+
+    const menu = await prisma.menu.findFirst({
+      where: { id: menuId, businessId },
+    });
+
+    if (!menu) {
+      return res.status(404).json({ error: "Menu not found" });
+    }
+
+    // Delete from Cloudinary
+    await new Promise((resolve, reject) => {
+      cloudinary.uploader.destroy(menu.publicId, { resource_type: 'raw' }, (error, result) => {
+        if (error) reject(error);
+        else resolve(result);
+      });
+    });
+
+    // Delete from database
+    await prisma.menu.delete({ where: { id: menuId } });
+
+    res.json({ message: "Menu deleted successfully" });
+  } catch (error) {
+    console.error('Menu delete error:', error);
+    res.status(500).json({ error: "Failed to delete menu" });
   }
 });
 

@@ -15,15 +15,18 @@ import {
   createBusiness,
   updateBusiness,
   deleteBusiness,
+  getMenus,
+  uploadMenu,
+  deleteMenu,
   listFeedback,
   addFeedback,
   listWithdrawals,
   requestWithdrawal,
-  confirmWithdrawal,
   walletBalance,
   totalWalletBalance,
   initializePayment,
   verifyPayment,
+  getBanks,
 } from "./api";
 import type { User, Business, Feedback, Withdrawal } from "./api";
 
@@ -44,15 +47,18 @@ export {
   createBusiness,
   updateBusiness,
   deleteBusiness,
+  getMenus,
+  uploadMenu,
+  deleteMenu,
   listFeedback,
   addFeedback,
   listWithdrawals,
   requestWithdrawal,
-  confirmWithdrawal,
   walletBalance,
   totalWalletBalance,
   initializePayment,
   verifyPayment,
+  getBanks,
 };
 
 export function useStore<T>(reader: () => T): T {

@@ -220,10 +220,10 @@ export default function Rate() {
               <p className="mt-1 text-sm text-muted-foreground">Choose an option below.</p>
               <div className="mt-8 space-y-3">
                 <Button
-                  onClick={() => setStep("rating")}
+                  onClick={() => setStep("experience")}
                   className="w-full bg-gradient-primary shadow-elegant text-base py-6"
                 >
-                  Rate our service today
+                  Give Feedback/Complain
                 </Button>
                 <Button
                   variant="outline"
@@ -249,7 +249,6 @@ export default function Rate() {
                     onMouseLeave={() => setHover(0)}
                     onClick={() => {
                       setRating(n);
-                      setTimeout(() => setStep("experience"), 200);
                     }}
                     className="transition hover:scale-110"
                   >
@@ -263,6 +262,16 @@ export default function Rate() {
                   </button>
                 ))}
               </div>
+              {rating > 0 && (
+                <div className="mt-8">
+                  <Button
+                    onClick={() => setStep("phone")}
+                    className="w-full bg-gradient-primary shadow-elegant"
+                  >
+                    Continue
+                  </Button>
+                </div>
+              )}
              </div>
            )}
 
@@ -280,10 +289,10 @@ export default function Rate() {
                    Skip
                  </Button>
                  <Button
-                   onClick={() => setStep("phone")}
+                   onClick={() => setStep("rating")}
                    className="flex-[2] bg-gradient-primary shadow-elegant"
                  >
-                   Continue
+                   Continue to Rating
                  </Button>
                </div>
             </div>

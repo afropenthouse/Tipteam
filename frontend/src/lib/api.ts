@@ -83,6 +83,7 @@ export type Business = {
   email: string;
   phone: string;
   address: string;
+  menuQrCode?: string;
   createdAt: string;
   updatedAt?: string;
 };
@@ -104,7 +105,10 @@ export type Withdrawal = {
   businessId: string;
   amount: number;
   accountNumber: string;
-  status: "AWAITING_CONFIRMATION" | "PENDING" | "APPROVED" | "REJECTED";
+  bankName: string;
+  bankCode?: string;
+  accountName?: string;
+  status: "COMPLETED" | "PENDING" | "APPROVED" | "REJECTED";
   createdAt: string;
   updatedAt?: string;
   business?: { name: string };
@@ -187,6 +191,64 @@ export const deleteBusiness = async (id: string) => {
   return api.delete<{ message: string }>(`/businesses/${id}`);
 };
 
+export const getMenus = async (businessId: string) => {
+  const token = getToken();
+  const response = await fetch(`${API_URL}/businesses/${businessId}/menus`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || "Failed to get menus");
+  }
+  
+  const data = await response.json();
+  return data.menus;
+};
+
+export const uploadMenu = async (businessId: string, file: File, name?: string) => {
+  const formData = new FormData();
+  formData.append('menu', file);
+  if (name) {
+    formData.append('name', name);
+  }
+  
+  const token = getToken();
+  const response = await fetch(`${API_URL}/businesses/${businessId}/menus`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+    body: formData,
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || "Failed to upload menu");
+  }
+  
+  return response.json();
+};
+
+export const deleteMenu = async (businessId: string, menuId: string) => {
+  const token = getToken();
+  const response = await fetch(`${API_URL}/businesses/${businessId}/menus/${menuId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+  
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || "Failed to delete menu");
+  }
+  
+  return response.json();
+};
+
 export const listFeedback = async (businessId?: string): Promise<Feedback[]> => {
   if (businessId) {
     const { feedbacks } = await api.get<{ feedbacks: Feedback[] }>(`/feedback/${businessId}`);
@@ -209,21 +271,14 @@ export const listWithdrawals = async (businessId?: string): Promise<Withdrawal[]
   return withdrawals;
 };
 
-export const requestWithdrawal = async (businessId: string, amount: number, accountNumber: string, bankName: string) => {
-  return api.post<{ message: string; withdrawalId: string }>("/withdrawals/request", {
+export const requestWithdrawal = async (businessId: string, amount: number, accountNumber: string, bankName: string, bankCode?: string) => {
+  return api.post<{ withdrawal: Withdrawal }>("/withdrawals/request", {
     businessId,
     amount,
     accountNumber,
     bankName,
-  });
-};
-
-export const confirmWithdrawal = async (withdrawalId: string, code: string): Promise<Withdrawal> => {
-  const { withdrawal } = await api.post<{ message: string; withdrawal: Withdrawal }>("/withdrawals/confirm", {
-    withdrawalId,
-    code,
-  });
-  return withdrawal;
+    bankCode,
+  }).then(data => data.withdrawal);
 };
 
 export const walletBalance = async (businessId: string) => {
@@ -281,4 +336,8 @@ export const getUserSubscriptions = async () => {
 
 export const cancelSubscription = async (subscriptionId: string) => {
   return api.patch<{ subscription: any }>(`/subscriptions/${subscriptionId}/cancel`);
+};
+
+export const getBanks = async () => {
+  return api.get<{ banks: Array<{ id: string; name: string; code: string }> }>("/paystack/banks").then(data => data.banks);
 };

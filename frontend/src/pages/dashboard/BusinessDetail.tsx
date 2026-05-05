@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
 import { QRCodeCanvas } from "qrcode.react";
-import { Copy, Download, MapPin, Mail, Phone, Star } from "lucide-react";
+import { Copy, Download, MapPin, Mail, Phone, Star, Upload, FileText, X } from "lucide-react";
 import QRCode from "qrcode";
 import { Button } from "@/components/ui/button";
 import { getBusiness, listFeedback, walletBalance } from "@/lib/store";
@@ -87,6 +87,21 @@ export default function BusinessDetail() {
     }
   };
 
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      if (file.type !== 'application/pdf') {
+        toast({ title: "Invalid file", description: "Please select a PDF file", variant: "destructive" });
+        return;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        toast({ title: "File too large", description: "Please select a file smaller than 10MB", variant: "destructive" });
+        return;
+      }
+      setSelectedFile(file);
+    }
+  };
+
   const avg =
     feedback.length > 0
       ? (feedback.reduce((s, f) => s + f.rating, 0) / feedback.length).toFixed(1)
@@ -128,12 +143,12 @@ export default function BusinessDetail() {
           </p>
           <div className="mt-5 flex flex-col items-center gap-4 rounded-xl bg-card p-6">
             <div className="relative">
-              <QRCodeCanvas id="biz-qr" value={rateUrl} size={200} level="H" includeMargin />
-              <div className="absolute -bottom-2 left-0 right-0 text-center">
-                <span className="inline-block bg-primary text-primary-foreground text-xs font-medium px-3 py-1 rounded-full">
-                  Scan to give feedback
+              <div className="absolute -top-6 left-0 right-0 text-center z-10">
+                <span className="inline-block text-black text-sm font-bold px-4 py-2 whitespace-nowrap text-center">
+                  Scan to give feedback/Complain
                 </span>
               </div>
+              <QRCodeCanvas id="biz-qr" value={rateUrl} size={200} level="H" includeMargin />
             </div>
             <div className="w-full break-all rounded-md bg-muted px-3 py-2 text-center text-xs text-muted-foreground">
               {rateUrl}
@@ -177,9 +192,6 @@ export default function BusinessDetail() {
                       </span>
                     </div>
                     {f.experience && <p className="mt-2 text-sm">{f.experience}</p>}
-                    {f.complaint && (
-                      <p className="mt-1 text-xs text-destructive">Complaint: {f.complaint}</p>
-                    )}
                     {f.tipAmount > 0 && (
                       <p className="mt-1 text-xs font-medium text-primary">
                         Tipped {fmtNGN(f.tipAmount)}
@@ -191,6 +203,7 @@ export default function BusinessDetail() {
           )}
         </div>
       </div>
+
     </div>
   );
 }

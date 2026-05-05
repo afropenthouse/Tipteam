@@ -21,6 +21,11 @@ import Feedback from "./pages/dashboard/Feedback.tsx";
 import WalletPage from "./pages/dashboard/WalletPage.tsx";
 import Subscriptions from "./pages/dashboard/Subscriptions.tsx";
 import Rate from "./pages/customer/Rate.tsx";
+import Menu from "./pages/Menu.tsx";
+import MenuQRCode from "./pages/dashboard/MenuQRCode.tsx";
+import MenuQRGenerator from "./pages/MenuQRGenerator.tsx";
+import MenuQRGeneratorDashboard from "./pages/dashboard/MenuQRGenerator.tsx";
+import MenuQRViewer from "./pages/MenuQRViewer.tsx";
 
 const queryClient = new QueryClient();
 
@@ -39,11 +44,16 @@ const App = () => (
           <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/rate/:businessId" element={<Rate />} />
+          <Route path="/menu/:publicId" element={<Menu />} />
+          <Route path="/menu-qr-generator" element={<MenuQRGenerator />} />
+          <Route path="/menu-qr-view/:publicId" element={<MenuQRViewer />} />
           <Route path="/dashboard" element={<DashboardLayout />}>
             <Route index element={<Overview />} />
             <Route path="businesses" element={<Businesses />} />
             <Route path="businesses/new" element={<NewBusiness />} />
             <Route path="businesses/:id" element={<BusinessDetail />} />
+            <Route path="businesses/:id/menu-qr" element={<MenuQRCode />} />
+            <Route path="menu-qr-generator" element={<MenuQRGeneratorDashboard />} />
             <Route path="ratings" element={<Ratings />} />
             <Route path="complaints" element={<Feedback />} />
             <Route path="wallet" element={<WalletPage />} />

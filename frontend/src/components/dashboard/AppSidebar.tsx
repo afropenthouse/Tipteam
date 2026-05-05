@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 const mainItems = [
   { title: "Overview", url: "/dashboard", icon: LayoutDashboard, end: true },
   { title: "Businesses", url: "/dashboard/businesses", icon: Store },
+  { title: "Menu QR Generator", url: "/dashboard/menu-qr-generator", icon: QrCode },
   { title: "Ratings", url: "/dashboard/ratings", icon: Star },
   { title: "Feedback & complaints", url: "/dashboard/complaints", icon: MessageSquareWarning },
   { title: "Wallet", url: "/dashboard/wallet", icon: Wallet },
