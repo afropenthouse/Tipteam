@@ -4,16 +4,10 @@ import { Copy, Download, Upload, FileText, X, Share2, Building2, Trash2 } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Select, SelectContent, SelectTrigger, SelectValue, SelectItem } from "@/components/ui/select";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { listBusinesses, uploadMenu, getMenus, deleteMenu } from "@/lib/store";
+import { listBusinesses, getMenus, uploadMenu, deleteMenu } from "@/lib/api";
 
 interface Business {
   id: string;
@@ -93,16 +87,17 @@ export default function MenuQRGenerator() {
     setUploading(true);
     try {
       const result = await uploadMenu(selectedBusinessId, selectedFile, menuName || 'Menu');
-      // Add the new menu to the menus array
-      setMenus([result.menu, ...menus]);
       
-      const menuUrl = `${window.location.origin}/menu/${result.menu.publicId}`;
-      
+       const menuUrl = `${window.location.origin}/menu-qr-view/${result.menu.publicId}`;
+
       setUploadedMenu({
         publicId: result.menu.publicId,
         name: result.menu.name,
         url: menuUrl
       });
+      
+      // Add the new menu to the menus array
+      setMenus([result.menu, ...menus]);
       
       setSelectedFile(null);
       setMenuName('');
@@ -355,9 +350,9 @@ export default function MenuQRGenerator() {
           </CardHeader>
           <CardContent>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {menus.map((menu) => {
-                const menuUrl = `${window.location.origin}/menu/${menu.publicId}`;
-                return (
+                  {menus.map((menu) => {
+                    const menuUrl = `${window.location.origin}/menu-qr-view/${menu.publicId}`;
+                    return (
                   <div key={menu.id} className="border rounded-lg p-4">
                     <div className="flex items-start justify-between mb-3">
                       <div>
@@ -377,41 +372,41 @@ export default function MenuQRGenerator() {
                     </div>
                     <div className="flex flex-col items-center gap-3">
                        <QRCodeCanvas 
-                         value={menuUrl}
-                         size={150} 
-                         level="H" 
-                       />
-                      <p className="text-xs text-muted-foreground text-center">
-                        Scan to view {menu.name}
-                      </p>
-                      <div className="flex gap-2">
-                         <Button 
-                           onClick={() => window.open(menuUrl, '_blank')}
-                           variant="outline"
-                           size="sm"
-                           className="flex-1"
-                         >
-                           <FileText className="h-4 w-4 mr-2" />
-                           View
-                         </Button>
-                         <Button 
-                           onClick={() => navigator.clipboard.writeText(menuUrl)}
-                           variant="outline"
-                           size="sm"
-                           className="flex-1"
-                         >
-                           <Copy className="h-4 w-4 mr-2" />
-                           Copy Link
-                         </Button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-    </div>
+                          value={menuUrl}
+                          size={150} 
+                          level="H" 
+                        />
+                       <p className="text-xs text-muted-foreground text-center">
+                          Scan to view {menu.name}
+                       </p>
+                       <div className="flex gap-2">
+                          <Button 
+                            onClick={() => window.open(menuUrl, '_blank')}
+                            variant="outline"
+                            size="sm"
+                            className="flex-1"
+                          >
+                            <FileText className="h-4 w-4 mr-2" />
+                            View
+                          </Button>
+                          <Button 
+                            onClick={() => navigator.clipboard.writeText(menuUrl)}
+                            variant="outline"
+                            size="sm"
+                            className="flex-1"
+                          >
+                            <Copy className="h-4 w-4 mr-2" />
+                            Copy Link
+                          </Button>
+                       </div>
+                     </div>
+                   </div>
+                 );
+               })}
+             </div>
+           </CardContent>
+         </Card>
+       )}
+     </div>
   );
 }

@@ -16,16 +16,18 @@ export default function MenuQRViewer() {
       return;
     }
 
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+    
     // Fetch menu from backend API
-    const apiUrl = import.meta.env.VITE_API_URL || '/api';
-    fetch(`${apiUrl}/menus/${publicId}`)
+    fetch(`${apiUrl}/businesses/menu/${publicId}`)
       .then(res => {
         if (!res.ok) throw new Error('Menu not found');
         return res.json();
       })
       .then(data => {
-        // Use proxy endpoint for PDF display instead of direct Cloudinary URL
-        setPdfUrl(`${apiUrl}/menus/${publicId}/pdf`);
+        // Use proxy endpoint for PDF display through backend
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+        setPdfUrl(`${apiUrl}/businesses/menu/${publicId}/pdf`);
         setMenuName(data.menu.name);
       })
       .catch(err => {

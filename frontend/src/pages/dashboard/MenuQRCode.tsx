@@ -179,7 +179,7 @@ export default function MenuQRCode() {
           <h2 className="font-semibold mb-4">Your Menus ({menus.length})</h2>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
 {menus.map((menu) => {
-              const menuUrl = `${window.location.origin}/menu/${menu.publicId}`;
+               const menuUrl = `${window.location.origin}/menu-qr-view/${menu.publicId}`;
                return (
                 <div key={menu.id} className="border rounded-lg p-4">
                   <div className="flex items-start justify-between mb-3">

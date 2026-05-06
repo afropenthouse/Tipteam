@@ -7,7 +7,6 @@ import feedbackRoutes from "./routes/feedback.js";
 import withdrawalRoutes from "./routes/withdrawals.js";
 import paystackRoutes from "./routes/paystack.js";
 import subscriptionRoutes from "./routes/subscriptions.js";
-import menuRoutes from "./routes/menus.js";
 
 dotenv.config();
 
@@ -43,7 +42,6 @@ app.use("/api/feedback", feedbackRoutes);
 app.use("/api/withdrawals", withdrawalRoutes);
 app.use("/api/paystack", paystackRoutes);
 app.use("/api/subscriptions", subscriptionRoutes);
-app.use("/api/menus", menuRoutes);
 
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok" });

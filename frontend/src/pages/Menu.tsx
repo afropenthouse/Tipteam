@@ -3,8 +3,6 @@ import { useParams } from "react-router-dom";
 import { Loader2, FileText, Download, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
-
 export default function Menu() {
   const { publicId } = useParams<{ publicId: string }>();
   const [loading, setLoading] = useState(true);
@@ -19,14 +17,11 @@ export default function Menu() {
       return;
     }
 
-    const fetchMenu = async () => {
+     const fetchMenu = async () => {
       try {
-        let response = await fetch(`${API_URL}/menus/${publicId}`);
+        let response = await fetch(`${import.meta.env.VITE_API_URL}/businesses/menu/${publicId}`);
         if (!response.ok) {
-          response = await fetch(`${API_URL}/businesses/menu/${publicId}`);
-          if (!response.ok) {
-            throw new Error("Menu not found");
-          }
+          throw new Error("Menu not found");
         }
         const data = await response.json();
         
@@ -52,7 +47,7 @@ export default function Menu() {
           {cloudinaryUrl && (
             <div className="mt-6">
               <Button asChild>
-                <a href={cloudinaryUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
+                <a href={`https://res.cloudinary.com/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/raw/upload/${cloudinaryUrl}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
                   <ExternalLink className="h-4 w-4" />
                   Open Menu in New Tab
                 </a>
@@ -81,25 +76,25 @@ export default function Menu() {
         <div className="bg-gray-100 p-4 flex justify-between items-center">
           <h2 className="font-semibold">{menuName}</h2>
           <div className="flex gap-2">
-          <Button asChild variant="secondary">
-            <a href={`${API_URL}/menus/${publicId}/pdf`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
-              <ExternalLink className="h-4 w-4" />
-              Open Menu
-            </a>
-          </Button>
-          <a
-            href={`${API_URL}/menus/${publicId}/pdf`}
-            download={`${menuName}.pdf`}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-          >
-            <Download className="h-4 w-4" />
-            Download PDF
-          </a>
-          </div>
-        </div>
+             <Button asChild variant="secondary">
+               <a href={`${import.meta.env.VITE_API_URL}/businesses/menu/${publicId}/pdf`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
+                 <ExternalLink className="h-4 w-4" />
+                 Open Menu
+               </a>
+             </Button>
+             <a
+               href={`${import.meta.env.VITE_API_URL}/businesses/menu/${publicId}/pdf`}
+               download={`${menuName}.pdf`}
+               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+             >
+               <Download className="h-4 w-4" />
+               Download PDF
+             </a>
+           </div>
+         </div>
         <iframe
-          src={`${API_URL}/menus/${publicId}/pdf`}
-          className="flex-1 w-full"
+          src={`${import.meta.env.VITE_API_URL}/businesses/menu/${publicId}/pdf`}
+          className="flex-1 w-full min-h-[600px]"
           title="Menu PDF"
         ></iframe>
       </div>

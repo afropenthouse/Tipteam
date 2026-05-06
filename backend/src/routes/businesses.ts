@@ -188,6 +188,49 @@ router.get("/public/:id", async (req: AuthRequest, res: Response) => {
   }
 });
 
+// Serve PDF file from Cloudinary (proxy)
+router.get("/menu/:publicId/pdf", async (req: AuthRequest, res: Response) => {
+  try {
+    const publicId = Array.isArray(req.params.publicId) ? req.params.publicId[0] : req.params.publicId;
+
+    const menu = await prisma.menu.findFirst({
+      where: { publicId },
+    });
+
+    if (!menu) {
+      return res.status(404).json({ error: "Menu not found" });
+    }
+
+    // Build Cloudinary delivery URL directly
+    // menu.cloudinaryUrl format: "business-menus/abc123" (folder/public_id)
+    const deliveryUrl = `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/raw/upload/${menu.cloudinaryUrl}`;
+    
+    console.log('Fetching PDF from Cloudinary:', deliveryUrl);
+
+    // Try to fetch the PDF from Cloudinary
+    const response = await fetch(deliveryUrl);
+    
+    if (response.ok) {
+      console.log('Successfully fetched PDF from Cloudinary');
+      const buffer = await response.arrayBuffer();
+      
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `inline; filename="${menu.name}.pdf"`);
+      res.send(Buffer.from(buffer));
+      return;
+    } else {
+      console.log('Cloudinary fetch failed:', response.status, response.statusText);
+    }
+
+    // As a last resort, redirect to Cloudinary
+    console.log('Redirecting to Cloudinary URL:', deliveryUrl);
+    return res.redirect(307, deliveryUrl);
+  } catch (error) {
+    console.error('PDF serve error:', error);
+    res.status(500).json({ error: "Failed to serve PDF" });
+  }
+});
+
 // Get menu by publicId (public - no auth required for QR code access)
 router.get("/menu/:publicId", async (req: AuthRequest, res: Response) => {
   try {
@@ -267,7 +310,7 @@ router.post("/:id/menus", authenticate, upload.single('menu'), async (req: AuthR
 
     const menuPublicId = generatePublicId();
 
-    // Upload PDF to Cloudinary as a private raw file
+    // Upload PDF to Cloudinary as a public raw file
     const result = await new Promise<any>((resolve, reject) => {
       cloudinary.uploader.upload_stream(
         {
@@ -275,6 +318,8 @@ router.post("/:id/menus", authenticate, upload.single('menu'), async (req: AuthR
           folder: 'business-menus',
           public_id: menuPublicId,
           format: 'pdf',
+          type: 'upload',
+          access_mode: 'public',
         },
         (error, result) => {
           if (error) reject(error);
@@ -331,7 +376,6 @@ router.delete("/:id/menus/:menuId", authenticate, async (req: AuthRequest, res: 
       return res.status(404).json({ error: "Menu not found" });
     }
 
-    // Delete from database (skip Cloudinary deletion for now)
     await prisma.menu.delete({ where: { id: menuId } });
 
     res.json({ message: "Menu deleted successfully" });

@@ -46,7 +46,7 @@ const App = () => (
           <Route path="/rate/:businessId" element={<Rate />} />
           <Route path="/menu/:publicId" element={<Menu />} />
           <Route path="/menu-qr-generator" element={<MenuQRGenerator />} />
-          <Route path="/menu-qr-view/:publicId" element={<Menu />} />
+           <Route path="/menu-qr-view/:publicId" element={<MenuQRViewer />} />
           <Route path="/dashboard" element={<DashboardLayout />}>
             <Route index element={<Overview />} />
             <Route path="businesses" element={<Businesses />} />
