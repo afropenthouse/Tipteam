@@ -1,4 +1,5 @@
 import { Router, Response } from "express";
+import { Readable } from "stream";
 import prisma from "../lib/prisma.js";
 import { AuthRequest } from "../middleware/auth.js";
 import cloudinary from "../lib/cloudinary.js";
@@ -93,7 +94,11 @@ router.get("/:publicId/pdf", async (req: AuthRequest, res: Response) => {
     res.setHeader('Content-Disposition', `inline; filename="${menu.name}.pdf"`);
 
     // Stream PDF directly to client
-    pdfResponse.body?.pipe(res);
+    if (pdfResponse.body) {
+      Readable.fromWeb(pdfResponse.body as any).pipe(res);
+    } else {
+      throw new Error("No PDF body received");
+    }
   } catch (error) {
     console.error('PDF proxy error:', error);
     res.status(500).json({ error: "Failed to serve PDF" });
