@@ -1,15 +1,73 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { QRCodeCanvas } from "qrcode.react";
-import { Copy, Download, Upload, FileText, X, Share2 } from "lucide-react";
+import { Copy, Download, Upload, FileText, X, Share2, Building2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { toast } from "@/hooks/use-toast";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { useToast } from "@/hooks/use-toast";
+import { listBusinesses, uploadMenu, getMenus, deleteMenu } from "@/lib/store";
+
+interface Business {
+  id: string;
+  name: string;
+}
+
+interface Menu {
+  id: string;
+  name: string;
+  cloudinaryUrl: string;
+  publicId: string;
+  createdAt: string;
+}
 
 export default function MenuQRGenerator() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [menuName, setMenuName] = useState('');
   const [uploading, setUploading] = useState(false);
-  const [uploadedMenu, setUploadedMenu] = useState<{ publicId: string; name: string; url: string; pdfUrl: string } | null>(null);
+  const [uploadedMenu, setUploadedMenu] = useState<{ publicId: string; name: string; url: string } | null>(null);
+  const [businesses, setBusinesses] = useState<Business[]>([]);
+  const [selectedBusinessId, setSelectedBusinessId] = useState<string>("");
+  const [menus, setMenus] = useState<Menu[]>([]);
+  const { toast } = useToast();
+
+  // Load businesses
+  useEffect(() => {
+    const loadBusinesses = async () => {
+      try {
+        const bizList = await listBusinesses();
+        setBusinesses(bizList);
+        if (bizList.length > 0 && !selectedBusinessId) {
+          setSelectedBusinessId(bizList[0].id);
+        }
+      } catch (error) {
+        console.error("Failed to load businesses:", error);
+      }
+    };
+    loadBusinesses();
+  }, []);
+
+  // Load menus when selected business changes
+  useEffect(() => {
+    if (!selectedBusinessId) return;
+
+    const loadMenus = async () => {
+      try {
+        const menusList = await getMenus(selectedBusinessId);
+        setMenus(menusList);
+      } catch (error) {
+        console.error("Failed to load menus:", error);
+      }
+    };
+    loadMenus();
+  }, [selectedBusinessId]);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -27,29 +85,23 @@ export default function MenuQRGenerator() {
   };
 
   const handleUpload = async () => {
-    if (!selectedFile) return;
+    if (!selectedFile || !selectedBusinessId) {
+      toast({ title: "Missing info", description: "Please select a business and a file", variant: "destructive" });
+      return;
+    }
 
     setUploading(true);
     try {
-      // Create blob URL for the PDF
-      const pdfUrl = URL.createObjectURL(selectedFile);
+      const result = await uploadMenu(selectedBusinessId, selectedFile, menuName || 'Menu');
+      // Add the new menu to the menus array
+      setMenus([result.menu, ...menus]);
       
-      // Generate a mock publicId
-      const mockPublicId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-      const menuUrl = `${window.location.origin}/menu-qr-view/${mockPublicId}`;
-      
-      // Store the PDF in sessionStorage for the viewer
-      sessionStorage.setItem(`menu-${mockPublicId}`, pdfUrl);
-      sessionStorage.setItem(`menu-name-${mockPublicId}`, menuName || 'Menu');
-      
-      // Simulate upload delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const menuUrl = `${window.location.origin}/menu/${result.menu.publicId}`;
       
       setUploadedMenu({
-        publicId: mockPublicId,
-        name: menuName || 'Menu',
-        url: menuUrl,
-        pdfUrl: pdfUrl
+        publicId: result.menu.publicId,
+        name: result.menu.name,
+        url: menuUrl
       });
       
       setSelectedFile(null);
@@ -57,9 +109,22 @@ export default function MenuQRGenerator() {
       toast({ title: "Menu uploaded", description: "Your menu QR code has been generated successfully" });
     } catch (error) {
       console.error("Upload error:", error);
-      toast({ title: "Upload failed", description: "Failed to upload menu. Please try again.", variant: "destructive" });
+      toast({ title: "Upload failed", description: error instanceof Error ? error.message : "Failed to upload menu", variant: "destructive" });
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleMenuDelete = async (menuId: string) => {
+    if (!selectedBusinessId) return;
+    
+    try {
+      await deleteMenu(selectedBusinessId, menuId);
+      setMenus(menus.filter(m => m.id !== menuId));
+      toast({ title: "Menu deleted", description: "Menu has been deleted successfully" });
+    } catch (error) {
+      console.error("Menu delete error:", error);
+      toast({ title: "Delete failed", description: error instanceof Error ? error.message : "Failed to delete menu", variant: "destructive" });
     }
   };
 
@@ -103,150 +168,157 @@ export default function MenuQRGenerator() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Menu QR Generator</h1>
-        <p className="text-muted-foreground">
-          Create QR codes for your menus instantly
-        </p>
+        <p className="text-sm text-muted-foreground">Create QR codes for your menus instantly</p>
       </div>
 
-      {!uploadedMenu ? (
-        /* Upload Section */
-        <Card>
-          <CardHeader>
-            <CardTitle>Upload Menu</CardTitle>
-            <CardDescription>
-              Upload a PDF file to generate a QR code
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
+      {/* Upload New Menu */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Upload Menu</CardTitle>
+          <CardDescription>
+            Upload a PDF file to generate a QR code
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {businesses.length > 0 && (
               <div>
-                <label className="text-sm font-medium">Menu Name</label>
-                <input
-                  type="text"
-                  placeholder="e.g., Restaurant Menu"
-                  value={menuName}
-                  onChange={(e) => setMenuName(e.target.value)}
-                  className="w-full mt-1 px-3 py-2 border rounded-md"
-                />
+                <Label htmlFor="business">Select Business</Label>
+                <Select value={selectedBusinessId} onValueChange={setSelectedBusinessId}>
+                  <SelectTrigger id="business">
+                    <SelectValue placeholder="Select a business" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {businesses.map((biz) => (
+                      <SelectItem key={biz.id} value={biz.id}>
+                        <div className="flex items-center gap-2">
+                          <Building2 className="h-4 w-4" />
+                          {biz.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              
-              <div>
-                <label className="text-sm font-medium">PDF File</label>
-                <div className="mt-1 border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                  {selectedFile ? (
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-center gap-2 p-2 bg-gray-50 rounded">
-                        <FileText className="h-4 w-4" />
-                        <span className="text-sm">{selectedFile.name}</span>
-                        <Button
-                          onClick={() => setSelectedFile(null)}
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0"
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                      <div className="flex gap-2 justify-center">
-                        <Button
-                          onClick={handleUpload}
-                          disabled={uploading || !menuName.trim()}
-                        >
-                          {uploading ? "Generating..." : "Generate QR Code"}
-                        </Button>
-                        <Button
-                          onClick={() => setSelectedFile(null)}
-                          variant="outline"
-                          disabled={uploading}
-                        >
-                          Cancel
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div>
-                      <input
-                        type="file"
-                        id="menu-upload"
-                        accept=".pdf"
-                        onChange={handleFileSelect}
-                        className="hidden"
-                      />
+            )}
+            
+            <div>
+              <Label htmlFor="menuName">Menu Name</Label>
+              <Input
+                id="menuName"
+                type="text"
+                placeholder="e.g., Restaurant Menu, Cafe Menu"
+                value={menuName}
+                onChange={(e) => setMenuName(e.target.value)}
+              />
+            </div>
+            
+            <div>
+              <Label>PDF File</Label>
+              <div className="mt-2 border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
+                {selectedFile ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-center gap-2 p-2 bg-muted rounded">
+                      <FileText className="h-4 w-4" />
+                      <span className="text-sm">{selectedFile.name}</span>
                       <Button
-                        onClick={() => document.getElementById('menu-upload')?.click()}
+                        onClick={() => setSelectedFile(null)}
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0"
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    <div className="flex gap-2 justify-center">
+                      <Button
+                        onClick={handleUpload}
+                        disabled={uploading || !menuName.trim() || !selectedBusinessId}
+                      >
+                        {uploading ? "Generating..." : "Generate QR Code"}
+                      </Button>
+                      <Button
+                        onClick={() => setSelectedFile(null)}
                         variant="outline"
                         disabled={uploading}
                       >
-                        <Upload className="h-4 w-4 mr-2" />
-                        Select PDF File
+                        Cancel
                       </Button>
                     </div>
-                  )}
-                </div>
+                  </div>
+                ) : (
+                  <div>
+                    <input
+                      type="file"
+                      id="menu-upload"
+                      accept=".pdf"
+                      onChange={handleFileSelect}
+                      className="hidden"
+                    />
+                    <Button
+                      onClick={() => document.getElementById('menu-upload')?.click()}
+                      variant="outline"
+                      disabled={uploading}
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      Select PDF File
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
-          </CardContent>
-        </Card>
-      ) : (
-        /* QR Code Result */
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Just Uploaded Menu */}
+      {uploadedMenu && (
         <Card>
           <CardHeader>
             <CardTitle>QR Code Generated</CardTitle>
-            <CardDescription>
-              Your menu QR code is ready to use
-            </CardDescription>
+            <CardDescription>Your menu QR code is ready to use</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex flex-col items-center space-y-6">
-              {/* QR Code */}
               <div className="p-4 bg-white rounded-lg border">
                 <div id={`qr-code-${uploadedMenu.publicId}`}>
                   <QRCodeCanvas 
                     value={uploadedMenu.url}
                     size={200} 
                     level="H" 
-                    includeMargin 
                   />
                 </div>
               </div>
-
-              {/* Menu Info */}
+              
               <div className="text-center">
-                <h3 className="text-lg font-semibold mb-2">
-                  {uploadedMenu.name}
-                </h3>
+                <h3 className="text-lg font-semibold mb-1">{uploadedMenu.name}</h3>
                 <p className="text-sm text-muted-foreground mb-4">
                   {uploadedMenu.url}
                 </p>
               </div>
 
-              {/* Action Buttons */}
               <div className="grid grid-cols-2 gap-3 w-full max-w-sm">
                 <Button
                   onClick={downloadQRCode}
                   variant="outline"
-                  className="flex items-center justify-center gap-2"
                 >
-                  <Download className="h-4 w-4" />
-                  Download
+                  <Download className="h-4 w-4 mr-2" />
+                  Download QR
                 </Button>
                 <Button
                   onClick={copyLink}
                   variant="outline"
-                  className="flex items-center justify-center gap-2"
                 >
-                  <Copy className="h-4 w-4" />
+                  <Copy className="h-4 w-4 mr-2" />
                   Copy Link
                 </Button>
                 <Button
                   onClick={shareQRCode}
                   variant="outline"
-                  className="flex items-center justify-center gap-2"
                 >
-                  <Share2 className="h-4 w-4" />
+                  <Share2 className="h-4 w-4 mr-2" />
                   Share
                 </Button>
                 <Button
@@ -256,14 +328,12 @@ export default function MenuQRGenerator() {
                     setMenuName('');
                   }}
                   variant="outline"
-                  className="flex items-center justify-center gap-2"
                 >
-                  <Upload className="h-4 w-4" />
+                  <Upload className="h-4 w-4 mr-2" />
                   New Menu
                 </Button>
               </div>
 
-              {/* Preview Button */}
               <Button
                 onClick={() => window.open(uploadedMenu.url, '_blank')}
                 className="w-full max-w-sm"
@@ -271,6 +341,73 @@ export default function MenuQRGenerator() {
                 <FileText className="h-4 w-4 mr-2" />
                 Preview Menu
               </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Existing Menus */}
+      {menus.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Your Menus ({menus.length})</CardTitle>
+            <CardDescription>All menus for the selected business</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {menus.map((menu) => {
+                const menuUrl = `${window.location.origin}/menu/${menu.publicId}`;
+                return (
+                  <div key={menu.id} className="border rounded-lg p-4">
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <h3 className="font-medium">{menu.name}</h3>
+                        <p className="text-xs text-muted-foreground">
+                          Uploaded {new Date(menu.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <Button
+                        onClick={() => handleMenuDelete(menu.id)}
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <div className="flex flex-col items-center gap-3">
+                       <QRCodeCanvas 
+                         value={menuUrl}
+                         size={150} 
+                         level="H" 
+                       />
+                      <p className="text-xs text-muted-foreground text-center">
+                        Scan to view {menu.name}
+                      </p>
+                      <div className="flex gap-2">
+                         <Button 
+                           onClick={() => window.open(menuUrl, '_blank')}
+                           variant="outline"
+                           size="sm"
+                           className="flex-1"
+                         >
+                           <FileText className="h-4 w-4 mr-2" />
+                           View
+                         </Button>
+                         <Button 
+                           onClick={() => navigator.clipboard.writeText(menuUrl)}
+                           variant="outline"
+                           size="sm"
+                           className="flex-1"
+                         >
+                           <Copy className="h-4 w-4 mr-2" />
+                           Copy Link
+                         </Button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </CardContent>
         </Card>

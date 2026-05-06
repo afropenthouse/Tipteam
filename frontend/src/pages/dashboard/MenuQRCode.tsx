@@ -178,60 +178,63 @@ export default function MenuQRCode() {
         <div className="rounded-2xl border bg-card p-6 shadow-card">
           <h2 className="font-semibold mb-4">Your Menus ({menus.length})</h2>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {menus.map((menu) => (
-              <div key={menu.id} className="border rounded-lg p-4">
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <h3 className="font-medium">{menu.name}</h3>
-                    <p className="text-xs text-muted-foreground">
-                      Uploaded {new Date(menu.createdAt).toLocaleDateString()}
+{menus.map((menu) => {
+              const menuUrl = `${window.location.origin}/menu/${menu.publicId}`;
+               return (
+                <div key={menu.id} className="border rounded-lg p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <h3 className="font-medium">{menu.name}</h3>
+                      <p className="text-xs text-muted-foreground">
+                        Uploaded {new Date(menu.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <Button
+                      onClick={() => handleMenuDelete(menu.id)}
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-500 hover:text-red-700"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="flex flex-col items-center gap-3">
+                     <QRCodeCanvas 
+                       value={menuUrl}
+                       size={150} 
+                       level="H" 
+                       includeMargin 
+                     />
+                    <p className="text-xs text-muted-foreground text-center">
+                      Scan to view {menu.name}
                     </p>
-                  </div>
-                  <Button
-                    onClick={() => handleMenuDelete(menu.id)}
-                    variant="ghost"
-                    size="sm"
-                    className="text-red-500 hover:text-red-700"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-                <div className="flex flex-col items-center gap-3">
-                   <QRCodeCanvas 
-                     value={`${window.location.origin}/menu/${menu.publicId}`}
-                     size={150} 
-                     level="H" 
-                     includeMargin 
-                   />
-                  <p className="text-xs text-muted-foreground text-center">
-                    Scan to view {menu.name}
-                  </p>
-                  <div className="flex gap-2">
-                     <Button 
-                       onClick={() => window.open(`${window.location.origin}/menu/${menu.publicId}`, '_blank')}
-                       variant="outline"
-                       size="sm"
-                       className="flex-1"
-                     >
-                       <FileText className="h-4 w-4 mr-2" />
-                       View
-                     </Button>
-                     <Button 
-                       onClick={() => navigator.clipboard.writeText(`${window.location.origin}/menu/${menu.publicId}`)}
-                       variant="outline"
-                       size="sm"
-                       className="flex-1"
-                     >
-                       <Copy className="h-4 w-4 mr-2" />
-                       Copy Link
-                     </Button>
+                    <div className="flex gap-2">
+                       <Button 
+                         onClick={() => window.open(menuUrl, '_blank')}
+                         variant="outline"
+                         size="sm"
+                         className="flex-1"
+                       >
+                         <FileText className="h-4 w-4 mr-2" />
+                         View
+                       </Button>
+                       <Button 
+                         onClick={() => navigator.clipboard.writeText(menuUrl)}
+                         variant="outline"
+                         size="sm"
+                         className="flex-1"
+                       >
+                         <Copy className="h-4 w-4 mr-2" />
+                         Copy Link
+                       </Button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
+              );
+            })}
+           </div>
+         </div>
+       )}
+     </div>
+   );
 }

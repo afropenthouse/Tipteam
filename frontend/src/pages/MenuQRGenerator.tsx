@@ -1,14 +1,39 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { QRCodeCanvas } from "qrcode.react";
-import { Copy, Download, Upload, FileText, X, Share2 } from "lucide-react";
+import { Copy, Download, Upload, FileText, X, Share2, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
+import { getBusiness, getMenus, uploadMenu } from "@/lib/store";
+
+interface Business {
+  id: string;
+  name: string;
+}
 
 export default function MenuQRGenerator() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [menuName, setMenuName] = useState('');
   const [uploading, setUploading] = useState(false);
   const [uploadedMenu, setUploadedMenu] = useState<{ publicId: string; name: string; url: string } | null>(null);
+  const [businesses, setBusinesses] = useState<Business[]>([]);
+  const [selectedBusinessId, setSelectedBusinessId] = useState<string>("");
+
+  useEffect(() => {
+    // Load businesses for user to select
+    const loadBusinesses = async () => {
+      try {
+        const bizList = await getBusiness();
+        setBusinesses(bizList);
+        if (bizList.length > 0 && !selectedBusinessId) {
+          setSelectedBusinessId(bizList[0].id);
+        }
+      } catch (error) {
+        console.error("Failed to load businesses:", error);
+      }
+    };
+    loadBusinesses();
+  }, []);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -26,21 +51,19 @@ export default function MenuQRGenerator() {
   };
 
   const handleUpload = async () => {
-    if (!selectedFile) return;
+    if (!selectedFile || !selectedBusinessId) {
+      toast({ title: "Missing info", description: "Please select a business and a file", variant: "destructive" });
+      return;
+    }
 
     setUploading(true);
     try {
-      // For now, we'll simulate the upload and generate a mock publicId
-      // In a real implementation, this would call your backend API
-      const mockPublicId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-      const menuUrl = `${window.location.origin}/menu/${mockPublicId}`;
-      
-      // Simulate upload delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const result = await uploadMenu(selectedBusinessId, selectedFile, menuName || 'Menu');
+      const menuUrl = `${window.location.origin}/menu/${result.menu.publicId}`;
       
       setUploadedMenu({
-        publicId: mockPublicId,
-        name: menuName || 'Menu',
+        publicId: result.menu.publicId,
+        name: result.menu.name,
         url: menuUrl
       });
       
@@ -49,7 +72,7 @@ export default function MenuQRGenerator() {
       toast({ title: "Menu uploaded", description: "Your menu QR code has been generated successfully" });
     } catch (error) {
       console.error("Upload error:", error);
-      toast({ title: "Upload failed", description: "Failed to upload menu. Please try again.", variant: "destructive" });
+      toast({ title: "Upload failed", description: error instanceof Error ? error.message : "Failed to upload menu", variant: "destructive" });
     } finally {
       setUploading(false);
     }
@@ -109,6 +132,27 @@ export default function MenuQRGenerator() {
         {/* Upload Section */}
         {!uploadedMenu && (
           <div className="bg-white rounded-2xl shadow-xl p-8">
+            {businesses.length > 0 && (
+              <div className="mb-6">
+                <label className="text-sm font-medium mb-2 block">Select Business</label>
+                <Select value={selectedBusinessId} onValueChange={setSelectedBusinessId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a business" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {businesses.map((biz) => (
+                      <SelectItem key={biz.id} value={biz.id}>
+                        <div className="flex items-center gap-2">
+                          <Building2 className="h-4 w-4" />
+                          {biz.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
               <Upload className="h-12 w-12 mx-auto text-gray-400 mb-4" />
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
@@ -145,7 +189,7 @@ export default function MenuQRGenerator() {
                   <div className="flex gap-3 justify-center">
                     <Button
                       onClick={handleUpload}
-                      disabled={uploading || !menuName.trim()}
+                      disabled={uploading || !menuName.trim() || !selectedBusinessId}
                       className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2"
                     >
                       {uploading ? (

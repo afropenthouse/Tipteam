@@ -1,13 +1,16 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Loader2, FileText, Download, ExternalLink } from "lucide-react";
-import { api } from "@/lib/api";
+import { Button } from "@/components/ui/button";
+
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 export default function Menu() {
   const { publicId } = useParams<{ publicId: string }>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [menu, setMenu] = useState<any>(null);
+  const [cloudinaryUrl, setCloudinaryUrl] = useState<string | null>(null);
+  const [menuName, setMenuName] = useState<string>("Menu");
 
   useEffect(() => {
     if (!publicId) {
@@ -18,15 +21,20 @@ export default function Menu() {
 
     const fetchMenu = async () => {
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/businesses/menu/${publicId}`);
+        let response = await fetch(`${API_URL}/menus/${publicId}`);
         if (!response.ok) {
-          throw new Error("Menu not found");
+          response = await fetch(`${API_URL}/businesses/menu/${publicId}`);
+          if (!response.ok) {
+            throw new Error("Menu not found");
+          }
         }
         const data = await response.json();
-        setMenu(data.menu);
+        
+        setMenuName(data.menu.name || "Menu");
+        setCloudinaryUrl(data.menu.cloudinaryUrl);
+        setLoading(false);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load menu");
-      } finally {
         setLoading(false);
       }
     };
@@ -36,11 +44,21 @@ export default function Menu() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center">
-          <FileText className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-          <h1 className="text-2xl font-bold mb-2">Menu Not Found</h1>
-          <p className="text-muted-foreground">{error}</p>
+          <FileText className="h-16 w-16 mx-auto text-gray-400 mb-4" />
+          <h1 className="text-2xl font-bold mb-2 text-gray-800">Menu Not Found</h1>
+          <p className="text-gray-600">{error}</p>
+          {cloudinaryUrl && (
+            <div className="mt-6">
+              <Button asChild>
+                <a href={cloudinaryUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
+                  <ExternalLink className="h-4 w-4" />
+                  Open Menu in New Tab
+                </a>
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -48,64 +66,45 @@ export default function Menu() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading menu...</p>
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-gray-600" />
+          <p className="text-gray-600">Loading menu...</p>
         </div>
       </div>
     );
   }
 
-  return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">{menu?.name}</h1>
-          {menu?.business && (
-            <div className="text-muted-foreground">
-              <p>{menu.business.name}</p>
-              <p className="text-sm">{menu.business.address}</p>
-              <p className="text-sm">{menu.business.phone} | {menu.business.email}</p>
-            </div>
-          )}
-        </div>
-        
-        <div className="border rounded-lg overflow-hidden shadow-lg">
-          <div className="bg-card p-4 border-b flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              <span className="font-medium">PDF Document</span>
-            </div>
-            <div className="flex gap-2">
-              <a
-                href={menu?.cloudinaryUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
-              >
-                <ExternalLink className="h-4 w-4" />
-                Open in New Tab
-              </a>
-              <a
-                href={menu?.cloudinaryUrl}
-                download
-                className="inline-flex items-center gap-2 px-4 py-2 border rounded-md hover:bg-muted transition-colors"
-              >
-                <Download className="h-4 w-4" />
-                Download
-              </a>
-            </div>
-          </div>
-          <div className="bg-black min-h-[600px] flex items-center justify-center p-4">
-            <iframe
-              src={`${menu?.cloudinaryUrl}#toolbar=0&navpanes=0&scrollbar=0`}
-              className="w-full max-w-4xl h-[800px] md:h-[900px]"
-              title={`${menu?.name} PDF`}
-            />
+  if (cloudinaryUrl) {
+    return (
+      <div className="min-h-screen bg-white flex flex-col">
+        <div className="bg-gray-100 p-4 flex justify-between items-center">
+          <h2 className="font-semibold">{menuName}</h2>
+          <div className="flex gap-2">
+          <Button asChild variant="secondary">
+            <a href={`${API_URL}/menus/${publicId}/pdf`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
+              <ExternalLink className="h-4 w-4" />
+              Open Menu
+            </a>
+          </Button>
+          <a
+            href={`${API_URL}/menus/${publicId}/pdf`}
+            download={`${menuName}.pdf`}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            <Download className="h-4 w-4" />
+            Download PDF
+          </a>
           </div>
         </div>
+        <iframe
+          src={`${API_URL}/menus/${publicId}/pdf`}
+          className="flex-1 w-full"
+          title="Menu PDF"
+        ></iframe>
       </div>
-    </div>
-  );
+    );
+  }
+
+  return null;
 }

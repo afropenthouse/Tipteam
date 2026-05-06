@@ -1,5 +1,4 @@
-import { useState, useEffect } from "react";
-import { Wallet as WalletIcon } from "lucide-react";
+import { Wallet as WalletIcon, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,222 +16,246 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  listBusinesses,
-  listWithdrawals,
-  requestWithdrawal,
-  walletBalance,
-  totalWalletBalance,
-  useCurrentUser,
-  getBanks,
-} from "@/lib/store";
-import { toast } from "@/hooks/use-toast";
-import type { Business, Withdrawal } from "@/lib/api";
+import { useEffect, useState } from "react";
+import { useToast } from "@/hooks/use-toast";
 
 const fmtNGN = (n: number) => `₦${n.toLocaleString()}`;
 
+interface Business {
+  id: string;
+  name: string;
+  email: string;
+}
+
+interface WalletBalance {
+  totalEarned: number;
+  totalWithdrawn: number;
+  availableBalance: number;
+}
+
+interface Withdrawal {
+  id: string;
+  amount: number;
+  accountNumber: string;
+  bankName: string;
+  status: string;
+  createdAt: string;
+}
+
+interface Bank {
+  name: string;
+  code: string;
+}
+
 export default function WalletPage() {
-  const user = useCurrentUser();
   const [businesses, setBusinesses] = useState<Business[]>([]);
-  const [selected, setSelected] = useState<string>("");
-  const [amount, setAmount] = useState<string>("");
-  const [accountNumber, setAccountNumber] = useState<string>("");
-  const [selectedBank, setSelectedBank] = useState<{ id: string; name: string; code: string } | null>(null);
-  const [banks, setBanks] = useState<Array<{ id: string; name: string; code: string }>>([]);
-  const [open, setOpen] = useState(false);
-  const [wallet, setWallet] = useState({ earned: 0, available: 0, withdrawn: 0 });
-  const [totalWallet, setTotalWallet] = useState({ earned: 0, available: 0, withdrawn: 0 });
-  const [history, setHistory] = useState<Withdrawal[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
+  const [selectedBusinessId, setSelectedBusinessId] = useState<string>("");
+  const [wallet, setWallet] = useState<WalletBalance>({
+    totalEarned: 0,
+    totalWithdrawn: 0,
+    availableBalance: 0,
+  });
+  const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
+  const [banks, setBanks] = useState<Bank[]>([]);
+  const [accountName, setAccountName] = useState<string>("");
+  const [loading, setLoading] = useState(false);
   const [resolving, setResolving] = useState(false);
-  const [accountName, setAccountName] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [bankCode, setBankCode] = useState<string>("");
+  const [accountNumber, setAccountNumber] = useState<string>("");
+  const [amount, setAmount] = useState<string>("");
+  const { toast } = useToast();
 
-  // Fetch businesses
-  useEffect(() => {
-    if (!user) return;
-    listBusinesses()
-      .then((bizList) => {
-        setBusinesses(bizList);
-        if (bizList.length > 0 && !selected) {
-          setSelected(bizList[0].id);
-        }
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, [user]);
+  const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+  const token = localStorage.getItem("ttt:token");
 
-  // Fetch banks on mount
   useEffect(() => {
-    getBanks()
-      .then((banksList) => {
-        // Deduplicate by code, keeping first occurrence
-        const seen = new Set();
-        const unique = banksList.filter((bank) => {
-          if (seen.has(bank.code)) return false;
-          seen.add(bank.code);
-          return true;
-        });
-        setBanks(unique);
-      })
-      .catch(console.error);
+    fetchBusinesses();
+    fetchBanks();
+    fetchAllWalletData();
+    
+    // Listen for store updates (e.g., after a tip is made)
+    const handleStoreUpdate = () => {
+      fetchAllWalletData();
+    };
+    window.addEventListener("ttt:store", handleStoreUpdate);
+    return () => window.removeEventListener("ttt:store", handleStoreUpdate);
   }, []);
 
-  // Fetch initial total wallet
   useEffect(() => {
-    if (!user) return;
-    totalWalletBalance()
-      .then((wallet) => {
-        console.log("[WalletPage] Initial totalWallet:", wallet);
-        setTotalWallet(wallet);
-      })
-      .catch((err) => console.error("Failed to fetch total wallet:", err));
-  }, [user]);
-
-  // Refresh on storage/focus events
-  useEffect(() => {
-    const handler = () => {
-      console.log("[WalletPage] refresh event received (ttt:store/storage/focus), refreshing...");
-      totalWalletBalance()
-        .then((wallet) => {
-          console.log("[WalletPage] totalWallet:", wallet);
-          setTotalWallet(wallet);
-        })
-        .catch((err) => console.error("Failed to fetch total wallet:", err));
-      if (selected) {
-        Promise.all([
-          walletBalance(selected).then(setWallet).catch(console.error),
-          listWithdrawals().then(setHistory).catch(console.error),
-        ]);
-      }
-    };
-    window.addEventListener("ttt:store", handler);
-    window.addEventListener("storage", handler);
-    window.addEventListener("focus", handler);
-    return () => {
-      window.removeEventListener("ttt:store", handler);
-      window.removeEventListener("storage", handler);
-      window.removeEventListener("focus", handler);
-    };
-  }, [selected]);
-
-  // Fetch wallet & history for selected business
-  useEffect(() => {
-    if (!selected) return;
-    Promise.all([walletBalance(selected), listWithdrawals()])
-      .then(([w, h]) => {
-        setWallet(w);
-        setHistory(h);
-      })
-      .catch(console.error);
-  }, [selected]);
-
-  // Resolve account name when bank and account number are filled
-  useEffect(() => {
-    if (!selectedBank || !/^\d{10}$/.test(accountNumber)) {
-      setAccountName(null);
-      return;
+    if (selectedBusinessId) {
+      fetchWalletData();
+      fetchWithdrawals();
     }
+  }, [selectedBusinessId]);
 
-    setResolving(true);
-    fetch(`/api/paystack/resolve-account?bankCode=${selectedBank.code}&accountNumber=${accountNumber}`)
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error("Account resolution failed");
-        }
-        return res.json();
-      })
-      .then((data) => {
-        setAccountName(data.accountName);
-      })
-      .catch(() => {
-        setAccountName(null);
-      })
-      .finally(() => {
-        setResolving(false);
+  const fetchBusinesses = async () => {
+    try {
+      const res = await fetch(`${apiUrl}/withdrawals/my-businesses`, {
+        headers: { Authorization: `Bearer ${token}` },
       });
-  }, [selectedBank, accountNumber]);
+      if (res.ok) {
+        const data = await res.json();
+        setBusinesses(data.businesses);
+      }
+    } catch (error) {
+      console.error("Failed to fetch businesses:", error);
+    }
+  };
 
-  const active = businesses.find((b) => b.id === selected);
+  const fetchBanks = async () => {
+    try {
+      const res = await fetch(`${apiUrl}/paystack/banks`);
+      if (res.ok) {
+        const data = await res.json();
+        setBanks(data.banks || []);
+      }
+    } catch (error) {
+      console.error("Failed to fetch banks:", error);
+    }
+  };
 
-  const onWithdraw = async (e: React.FormEvent) => {
+  // Fetch combined wallet data for all businesses
+  const fetchAllWalletData = async () => {
+    try {
+      const res = await fetch(`${apiUrl}/withdrawals/summary`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setWallet(data.wallet || { totalEarned: 0, totalWithdrawn: 0, availableBalance: 0 });
+      }
+    } catch (error) {
+      console.error("Failed to fetch all wallet data:", error);
+    }
+  };
+
+  const fetchWalletData = async () => {
+    if (!selectedBusinessId) return;
+    try {
+      const res = await fetch(`${apiUrl}/withdrawals/balance/${selectedBusinessId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setWallet(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch wallet data:", error);
+    }
+  };
+
+  const fetchWithdrawals = async () => {
+    if (selectedBusinessId) {
+      try {
+        const res = await fetch(`${apiUrl}/withdrawals/history/${selectedBusinessId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setWithdrawals(data.withdrawals || []);
+        }
+      } catch (error) {
+        console.error("Failed to fetch withdrawals:", error);
+      }
+    } else {
+      // Fetch all withdrawals across all businesses
+      try {
+        const res = await fetch(`${apiUrl}/withdrawals/history/all`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setWithdrawals(data.withdrawals || []);
+        }
+      } catch (error) {
+        console.error("Failed to fetch all withdrawals:", error);
+      }
+    }
+  };
+
+  const resolveAccount = async () => {
+    if (!bankCode || !accountNumber || accountNumber.length !== 10) return;
+    
+    setResolving(true);
+    setAccountName("");
+    
+    try {
+      const res = await fetch(
+        `${apiUrl}/paystack/resolve-account?bankCode=${bankCode}&accountNumber=${accountNumber}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      if (res.ok) {
+        const data = await res.json();
+        setAccountName(data.accountName);
+      } else {
+        const error = await res.json();
+        toast({ title: "Error", description: error.error || "Failed to resolve account", variant: "destructive" });
+      }
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to resolve account", variant: "destructive" });
+    } finally {
+      setResolving(false);
+    }
+  };
+
+  const handleWithdraw = async (e: React.FormEvent) => {
     e.preventDefault();
-    const amt = Number(amount);
-    if (!selected || !amt || amt <= 0) {
-      toast({ title: "Enter a valid amount", variant: "destructive" });
+    
+    if (!selectedBusinessId || !accountName || !amount) {
+      toast({ title: "Error", description: "All fields are required", variant: "destructive" });
       return;
     }
-    if (!selectedBank) {
-      toast({ title: "Select a bank", variant: "destructive" });
-      return;
-    }
-    if (!/^\d{10}$/.test(accountNumber)) {
-      toast({ title: "Enter a valid 10-digit account number", variant: "destructive" });
-      return;
-    }
-    if (amt > wallet.available) {
-      toast({ title: "Amount exceeds available balance", variant: "destructive" });
-      return;
-    }
+
     setSubmitting(true);
     try {
-      const res = await requestWithdrawal(selected, amt, accountNumber, selectedBank.name, selectedBank.code);
-      toast({ title: "Withdrawal successful", description: "Your withdrawal has been processed." });
-      setOpen(false);
-      setAmount("");
-      setAccountNumber("");
-      setSelectedBank(null);
-      setAccountName(null);
-      const [w, h] = await Promise.all([walletBalance(selected), listWithdrawals()]);
-      setWallet(w);
-      setHistory(h);
-      totalWalletBalance().then(setTotalWallet).catch(console.error);
-    } catch (err) {
-      toast({ title: "Failed", description: (err as Error).message, variant: "destructive" });
+      const res = await fetch(`${apiUrl}/withdrawals/create`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          businessId: selectedBusinessId,
+          accountNumber,
+          bankCode,
+          bankName: banks.find(b => b.code === bankCode)?.name || "",
+          accountName,
+          amount: parseInt(amount),
+        }),
+      });
+
+      const data = await res.json();
+      
+      if (res.ok) {
+        toast({ title: "Success", description: "Withdrawal request submitted successfully" });
+        setAccountNumber("");
+        setBankCode("");
+        setAccountName("");
+        setAmount("");
+        fetchAllWalletData();
+        fetchWithdrawals();
+      } else {
+        throw new Error(data.error || "Failed to create withdrawal");
+      }
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Failed to create withdrawal", variant: "destructive" });
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-
-  if (businesses.length === 0) {
-    return (
-      <div className="rounded-2xl border border-dashed p-12 text-center">
-        <WalletIcon className="mx-auto h-10 w-10 text-muted-foreground" />
-        <p className="mt-3 text-sm text-muted-foreground">Add a business first to start earning tips.</p>
-      </div>
-    );
-  }
+  const fee = Math.ceil(parseInt(amount) * 0.03) || 0;
+  const totalDeduction = (parseInt(amount) || 0) + fee;
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Wallet</h1>
-          <p className="text-sm text-muted-foreground">Tips your team has earned.</p>
-        </div>
-        <div className="w-56">
-          <Select value={selected} onValueChange={setSelected}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select business" />
-            </SelectTrigger>
-            <SelectContent>
-              {businesses.map((b) => (
-                <SelectItem key={b.id} value={b.id}>
-                  {b.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Wallet</h1>
+        <p className="text-sm text-muted-foreground">Tips your team has earned.</p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
@@ -240,135 +263,132 @@ export default function WalletPage() {
           <span className="text-xs uppercase tracking-wider text-primary-foreground/60">
             Total Available
           </span>
-          <div className="mt-2 text-4xl font-bold">{fmtNGN(totalWallet.available)}</div>
+          <div className="mt-2 text-4xl font-bold">{fmtNGN(wallet.availableBalance)}</div>
           <div className="mt-4 flex gap-6 text-xs text-primary-foreground/70">
-            <span>Total Earned: {fmtNGN(totalWallet.earned)}</span>
-            <span>Total Withdrawn: {fmtNGN(totalWallet.withdrawn)}</span>
+            <span>Total Earned: {fmtNGN(wallet.totalEarned)}</span>
+            <span>Total Withdrawn: {fmtNGN(wallet.totalWithdrawn)}</span>
           </div>
         </div>
-         <Dialog open={open} onOpenChange={(v) => {
-           setOpen(v);
-           if (!v) {
-             setAmount("");
-             setAccountNumber("");
-             setSelectedBank(null);
-             setAccountName(null);
-           }
-         }}>
-          <DialogTrigger asChild>
-            <Button className="w-full bg-gradient-primary shadow-elegant">Withdraw</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Withdraw funds</DialogTitle>
-              <DialogDescription>Fill in your bank details to withdraw.</DialogDescription>
-            </DialogHeader>
-            <form onSubmit={onWithdraw} className="space-y-4">
+        
+        {businesses.length > 0 && (
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button className="w-full bg-gradient-primary shadow-elegant">
+                Withdraw
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Withdraw funds</DialogTitle>
+                <DialogDescription>Fill in your bank details to withdraw.</DialogDescription>
+              </DialogHeader>
+              <form className="space-y-4" onSubmit={handleWithdraw}>
                 <div>
-                  <Label htmlFor="bank">Bank Name</Label>
-                  <Select value={selectedBank?.code || ""} onValueChange={(code) => {
-                    const bank = banks.find(b => b.code === code);
-                    if (bank) setSelectedBank(bank);
-                  }}>
-                    <SelectTrigger id="bank">
-                      <SelectValue placeholder="Select bank" />
+                  <Label htmlFor="business">Select Business</Label>
+                  <Select value={selectedBusinessId} onValueChange={setSelectedBusinessId}>
+                    <SelectTrigger id="business">
+                      <SelectValue placeholder="Select business to withdraw from" />
                     </SelectTrigger>
                     <SelectContent>
-                      {banks.map((b) => (
-                        <SelectItem key={b.id} value={b.code}>
-                          {b.name}
+                      {businesses.map((biz) => (
+                        <SelectItem key={biz.id} value={biz.id}>
+                          {biz.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
-              <div>
-                <Label htmlFor="accountNumber">Account Number</Label>
-                <Input
-                  id="accountNumber"
-                  type="text"
-                  maxLength={10}
-                  value={accountNumber}
-                  onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, ""))}
-                  placeholder="Enter 10-digit account number"
-                />
-              </div>
-              {(selectedBank && accountNumber.length === 10) && (
-                <div className="rounded-lg border p-3 text-sm">
-                  {resolving ? (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
-                      <span>Resolving account...</span>
-                    </div>
-                  ) : accountName ? (
-                    <>
-                      <p className="font-medium text-green-700 dark:text-green-400">Account Name Verified</p>
-                      <p className="mt-1 text-muted-foreground">
-                        Account Name: <span className="font-semibold text-foreground">{accountName}</span>
-                      </p>
-                      <p className="text-xs text-muted-foreground/70 mt-1">
-                        Bank: {selectedBank.name} | Account: {accountNumber}
-                      </p>
-                    </>
-                  ) : (
-                    <>
-                      <p className="font-medium text-orange-700 dark:text-orange-400">Account Verification Failed</p>
-                      <p className="mt-1 text-muted-foreground">
-                        The account number could not be resolved. Please check and try again.
-                      </p>
-                      <p className="text-xs text-muted-foreground/70 mt-1">
-                        Bank: {selectedBank.name} | Account: {accountNumber}
-                      </p>
-                    </>
+                <div>
+                  <Label htmlFor="bank">Bank Name</Label>
+                  <Select value={bankCode} onValueChange={(v) => { setBankCode(v); setAccountName(""); }}>
+                    <SelectTrigger id="bank">
+                      <SelectValue placeholder="Select bank" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {banks.map((bank) => (
+                        <SelectItem key={bank.code} value={bank.code}>
+                          {bank.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="accountNumber">Account Number</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="accountNumber"
+                      type="text"
+                      maxLength={10}
+                      placeholder="Enter 10-digit account number"
+                      value={accountNumber}
+                      onChange={(e) => setAccountNumber(e.target.value.replace(/\D/g, ""))}
+                      onBlur={resolveAccount}
+                    />
+                    {resolving && <Loader2 className="h-4 w-4 animate-spin self-center" />}
+                  </div>
+                  {accountName && (
+                    <p className="mt-1 text-xs text-green-600">Account Name: {accountName}</p>
                   )}
                 </div>
-              )}
-              <div>
-                <Label htmlFor="amount">Amount (NGN)</Label>
-                <Input
-                  id="amount"
-                  type="number"
-                  min={1}
-                  max={wallet.available}
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  placeholder="0"
-                />
-              </div>
-              <div className="text-xs text-muted-foreground">
-                Note: A 3% processing fee will be deducted from your withdrawal amount.
-              </div>
-              <Button type="submit" className="w-full bg-gradient-primary shadow-elegant" disabled={submitting}>
-                {submitting ? "Processing..." : "Withdraw"}
-              </Button>
-            </form>
-          </DialogContent>
-        </Dialog>
+                <div>
+                  <Label htmlFor="amount">Amount (NGN)</Label>
+                  <Input 
+                    id="amount" 
+                    type="number" 
+                    min={1} 
+                    placeholder="0" 
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                  />
+                  {amount && (
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      <p>Processing fee (3%): {fmtNGN(fee)}</p>
+                      <p>Total deduction: {fmtNGN(totalDeduction)}</p>
+                    </div>
+                  )}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Note: A 3% processing fee will be deducted from your withdrawal amount.
+                </div>
+                <DialogFooter>
+                  <Button 
+                    type="submit" 
+                    className="w-full bg-gradient-primary shadow-elegant"
+                    disabled={submitting || !selectedBusinessId || !accountName || !amount}
+                  >
+                    {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                    Withdraw
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
       <div className="rounded-xl border bg-card p-6 shadow-card">
         <h2 className="font-semibold">Withdrawal history</h2>
-        {history.length === 0 ? (
+        {withdrawals.length === 0 ? (
           <p className="mt-4 text-sm text-muted-foreground">No withdrawals yet.</p>
         ) : (
-          <ul className="mt-4 divide-y">
-            {history
-              .slice()
-              .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-              .map((w) => (
-                <li key={w.id} className="flex items-center justify-between py-3">
-                  <div>
-                    <p className="font-medium">{fmtNGN(w.amount)}</p>
-                    {w.business?.name && (
-                      <p className="text-xs text-muted-foreground">{w.business.name}</p>
-                    )}
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(w.createdAt).toLocaleString()}
-                    </p>
-                  </div>
-                </li>
-              ))}
-          </ul>
+          <div className="mt-4 space-y-2">
+            {withdrawals.map((w) => (
+              <div key={w.id} className="flex justify-between items-center py-2 border-b">
+                <div>
+                  <p className="font-medium">{fmtNGN(w.amount)}</p>
+                  <p className="text-xs text-muted-foreground">{w.bankName} - {w.accountNumber}</p>
+                </div>
+                <span className={`text-xs px-2 py-1 rounded ${
+                  w.status === "COMPLETED" ? "bg-green-100 text-green-800" :
+                  w.status === "PENDING" ? "bg-yellow-100 text-yellow-800" :
+                  "bg-red-100 text-red-800"
+                }`}>
+                  {w.status}
+                </span>
+              </div>
+            ))}
+          </div>
         )}
       </div>
     </div>
