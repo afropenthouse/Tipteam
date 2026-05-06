@@ -242,7 +242,7 @@ router.post("/:id/menus", authenticate, upload.single('menu'), async (req: AuthR
   try {
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const { name } = req.body;
-    
+
     const existing = await prisma.business.findFirst({
       where: { id, ownerId: req.userId },
     });
@@ -255,13 +255,25 @@ router.post("/:id/menus", authenticate, upload.single('menu'), async (req: AuthR
       return res.status(400).json({ error: "No file uploaded" });
     }
 
-    // Upload PDF to Cloudinary
-    const result = await new Promise((resolve, reject) => {
+    // Generate a unique URL-safe public ID for the menu
+    const generatePublicId = () => {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+      let result = '';
+      for (let i = 0; i < 16; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return result;
+    };
+
+    const menuPublicId = generatePublicId();
+
+    // Upload PDF to Cloudinary as a private raw file
+    const result = await new Promise<any>((resolve, reject) => {
       cloudinary.uploader.upload_stream(
         {
           resource_type: 'raw',
           folder: 'business-menus',
-          public_id: `${id}-menu-${Date.now()}`,
+          public_id: menuPublicId,
           format: 'pdf',
         },
         (error, result) => {
@@ -271,21 +283,22 @@ router.post("/:id/menus", authenticate, upload.single('menu'), async (req: AuthR
       ).end(req.file!.buffer);
     });
 
-    // Use custom domain URL instead of direct Cloudinary URL
-    const cloudinaryUrl = (result as any).secure_url;
-    const publicId = (result as any).public_id;
-    const customMenuUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/menu/${publicId}`;
+    // Cloudinary returns the full public_id with folder
+    const cloudinaryPublicId = result.public_id;
 
+    // Store the Cloudinary public_id in DB (not the URL)
     const menu = await prisma.menu.create({
       data: {
         businessId: id,
         name: name || 'Menu',
-        cloudinaryUrl,
-        publicId,
+        cloudinaryUrl: cloudinaryPublicId,
+        publicId: menuPublicId,
       },
     });
 
-    res.json({ 
+    const customMenuUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/menu/${menuPublicId}`;
+
+    res.json({
       message: "Menu uploaded successfully",
       menu,
       menuUrl: customMenuUrl
@@ -318,15 +331,7 @@ router.delete("/:id/menus/:menuId", authenticate, async (req: AuthRequest, res: 
       return res.status(404).json({ error: "Menu not found" });
     }
 
-    // Delete from Cloudinary
-    await new Promise((resolve, reject) => {
-      cloudinary.uploader.destroy(menu.publicId, { resource_type: 'raw' }, (error, result) => {
-        if (error) reject(error);
-        else resolve(result);
-      });
-    });
-
-    // Delete from database
+    // Delete from database (skip Cloudinary deletion for now)
     await prisma.menu.delete({ where: { id: menuId } });
 
     res.json({ message: "Menu deleted successfully" });

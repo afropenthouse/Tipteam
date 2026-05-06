@@ -1,173 +1,118 @@
-import { Router, Response } from "express";
+import { Router, Request, Response } from "express";
 import { body, validationResult } from "express-validator";
 import prisma from "../lib/prisma.js";
 import { authenticate, AuthRequest } from "../middleware/auth.js";
 
 const router = Router();
 
-const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
+async function psRequest(method: string, path: string, body?: Record<string, unknown>) {
+  const baseUrl = "https://api.paystack.co";
+  const sec = process.env.PAYSTACK_SECRET_KEY;
+  if (!sec) throw new Error("PAYSTACK_SECRET_KEY missing");
 
-async function psRequest(method: string, path: string, body?: unknown) {
-  if (!PAYSTACK_SECRET) throw new Error("PAYSTACK_SECRET_KEY missing");
-  const res = await fetch(`https://api.paystack.co${path}`, {
+  const res = await fetch(`${baseUrl}${path}`, {
     method,
     headers: {
-      Authorization: `Bearer ${PAYSTACK_SECRET}`,
+      Authorization: `Bearer ${sec}`,
       "Content-Type": "application/json",
     },
     body: body ? JSON.stringify(body) : undefined,
   });
+
   const json = await res.json();
-  if (!res.ok) throw new Error(json?.message || `Paystack ${method} ${path} failed`);
+  if (!res.ok) {
+    const err = new Error(json?.message || `Paystack API ${method} ${path} failed`);
+    // @ts-ignore
+    err.data = json;
+    throw err;
+  }
   return json;
 }
 
-const BANK_CODES: Record<string, string> = {
-  GTBank: "058",
-  "Access Bank": "044",
-  "Zenith Bank": "057",
-  UBA: "033",
-  "First Bank": "011",
-  "Fidelity Bank": "070",
-  "Sterling Bank": "032",
-  "Union Bank": "032",
-  "Wema Bank": "035",
-  "Polaris Bank": "076",
-  Ecobank: "050",
-  "Stanbic IBTC": "221",
-};
-
-const getWalletSummary = async (businessId: string) => {
+// Get wallet balance for a business (total tips earned minus withdrawn)
+router.get("/balance/:businessId", authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const [feedbacks, withdrawals] = await Promise.all([
-      prisma.feedback.findMany({ where: { businessId } }),
-      prisma.withdrawal.findMany({
-        where: { businessId },
-        orderBy: { createdAt: "desc" },
-      }),
-    ]);
+    const businessId = req.params.businessId as string;
+    const userId = req.userId;
 
-    const earned = feedbacks.reduce((sum, f) => sum + (f.tipAmount || 0), 0);
-    const withdrawn = withdrawals.reduce((sum, w) => sum + w.amount, 0);
-
-    return {
-      wallet: {
-        earned,
-        withdrawn,
-        available: Math.max(0, earned - withdrawn),
-      },
-      withdrawals,
-    };
-  } catch (error) {
-    console.error(`getWalletSummary failed for business ${businessId}:`, error);
-    // Fallback: only count COMPLETED withdrawals if filter fails due to status mismatch
-    try {
-      const [feedbacks, safeWithdrawals] = await Promise.all([
-        prisma.feedback.findMany({ where: { businessId } }),
-        prisma.withdrawal.findMany({
-          where: { businessId, status: "COMPLETED" },
-          orderBy: { createdAt: "desc" },
-        }),
-      ]);
-      const earned = feedbacks.reduce((sum, f) => sum + (f.tipAmount || 0), 0);
-      const withdrawn = safeWithdrawals.reduce((sum, w) => sum + w.amount, 0);
-      return {
-        wallet: { earned, withdrawn, available: Math.max(0, earned - withdrawn) },
-        withdrawals: safeWithdrawals,
-      };
-    } catch (fallbackError) {
-      console.error(`Fallback also failed for ${businessId}:`, fallbackError);
-      return { wallet: { earned: 0, withdrawn: 0, available: 0 }, withdrawals: [] };
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
     }
-  }
-};
 
-router.get("/", authenticate, async (req: AuthRequest, res: Response) => {
-  try {
-    const businesses = await prisma.business.findMany({
-      where: { ownerId: req.userId },
-      select: { id: true, name: true },
-    });
-
-    const businessIds = businesses.map((b) => b.id);
-
-    const withdrawals = await prisma.withdrawal.findMany({
-      where: { businessId: { in: businessIds } },
-      orderBy: { createdAt: "desc" },
-      include: { business: { select: { name: true } } },
-    });
-
-    res.json({ withdrawals });
-  } catch (error) {
-    res.status(500).json({ error: "Failed to get withdrawals" });
-  }
-});
-
-router.get("/summary", authenticate, async (req: AuthRequest, res: Response) => {
-  try {
-    const businesses = await prisma.business.findMany({
-      where: { ownerId: req.userId },
-      select: { id: true },
-    });
-
-    const businessIds = businesses.map((b) => b.id);
-
-    const earnedAgg = await prisma.feedback.aggregate({
-      where: { businessId: { in: businessIds } },
-      _sum: { tipAmount: true },
-    });
-
-    const withdrawnAgg = await prisma.withdrawal.aggregate({
-      where: { businessId: { in: businessIds } },
-      _sum: { amount: true },
-    });
-
-    const earned = earnedAgg._sum.tipAmount || 0;
-    const withdrawn = withdrawnAgg._sum.amount || 0;
-    const available = Math.max(0, earned - withdrawn);
-
-    res.json({ wallet: { earned, withdrawn, available } });
-  } catch (error) {
-    console.error("Wallet summary error:", error);
-    // Return safe empty wallet
-    res.json({ wallet: { earned: 0, withdrawn: 0, available: 0 } });
-  }
-});
-
-router.get("/business/:businessId", authenticate, async (req: AuthRequest, res: Response) => {
-  try {
-    const businessId = typeof req.params.businessId === "string" ? req.params.businessId : req.params.businessId[0];
     const business = await prisma.business.findFirst({
-      where: { id: businessId, ownerId: req.userId },
+      where: { id: businessId, ownerId: userId },
     });
 
     if (!business) {
       return res.status(404).json({ error: "Business not found" });
     }
 
-    const summary = await getWalletSummary(businessId);
-    res.json(summary);
-  } catch (error) {
-    console.error("Wallet fetch error:", error);
-    // Return safe empty wallet to avoid UI errors
-    res.json({ wallet: { earned: 0, withdrawn: 0, available: 0 }, withdrawals: [] });
+    const totalEarned = await prisma.feedback.aggregate({
+      where: { businessId },
+      _sum: { tipAmount: true },
+    });
+
+    const totalWithdrawn = await prisma.withdrawal.aggregate({
+      where: { businessId },
+      _sum: { amount: true },
+    });
+
+    const totalEarnedAmount = totalEarned._sum?.tipAmount ?? 0;
+    const totalWithdrawnAmount = totalWithdrawn._sum?.amount ?? 0;
+    const availableBalance = totalEarnedAmount - totalWithdrawnAmount;
+
+    res.json({
+      totalEarned: totalEarnedAmount,
+      totalWithdrawn: totalWithdrawnAmount,
+      availableBalance,
+    });
+  } catch (error: any) {
+    console.error("Wallet balance error:", error);
+    res.status(500).json({ error: error?.message || "Failed to get wallet balance" });
   }
 });
 
+// Get withdrawal history
+router.get("/history/:businessId", authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const businessId = req.params.businessId as string;
+    const userId = req.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const business = await prisma.business.findFirst({
+      where: { id: businessId, ownerId: userId },
+    });
+
+    if (!business) {
+      return res.status(404).json({ error: "Business not found" });
+    }
+
+    const withdrawals = await prisma.withdrawal.findMany({
+      where: { businessId },
+      orderBy: { createdAt: "desc" },
+    });
+
+    res.json({ withdrawals });
+  } catch (error: any) {
+    console.error("Withdrawal history error:", error);
+    res.status(500).json({ error: error?.message || "Failed to get withdrawal history" });
+  }
+});
+
+// Create withdrawal request
 router.post(
-  "/request",
+  "/create",
   authenticate,
   [
     body("businessId").notEmpty().withMessage("Business ID is required"),
-    body("amount").isInt({ min: 1 }).withMessage("Amount must be at least 1"),
-    body("accountNumber")
-      .trim()
-      .isLength({ min: 10, max: 10 })
-      .withMessage("Account number must be 10 digits")
-      .isNumeric()
-      .withMessage("Account number must contain only numbers"),
+    body("accountNumber").isLength({ min: 10, max: 10 }).withMessage("Account number must be 10 digits"),
+    body("bankCode").notEmpty().withMessage("Bank code is required"),
     body("bankName").notEmpty().withMessage("Bank name is required"),
-    body("bankCode").optional().isString(),
+    body("accountName").notEmpty().withMessage("Account name is required"),
+    body("amount").isInt({ min: 1 }).withMessage("Amount must be at least 1"),
   ],
   async (req: AuthRequest, res: Response) => {
     try {
@@ -176,125 +121,151 @@ router.post(
         return res.status(400).json({ error: errors.array()[0]?.msg || "Invalid withdrawal details" });
       }
 
-      const { businessId, amount, accountNumber, bankName, bankCode } = req.body;
+      const { businessId, accountNumber, bankCode, bankName, accountName, amount } = req.body;
+      const userId = req.userId;
+
+      if (!userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
 
       const business = await prisma.business.findFirst({
-        where: { id: businessId, ownerId: req.userId },
-        include: {
-          owner: {
-            select: { id: true, email: true, fullName: true },
-          },
-        },
+        where: { id: businessId, ownerId: userId },
       });
 
       if (!business) {
         return res.status(404).json({ error: "Business not found" });
       }
 
-      const summary = await getWalletSummary(businessId);
-      const available = summary.wallet.available;
-
-      if (amount > available) {
-        return res.status(400).json({ error: "Amount exceeds available balance" });
-      }
-
-      // Resolve account name via Paystack if we have bankCode, otherwise fall back to owner name
-      let accountName: string | null = null;
-      let actualBankCode = bankCode;
-
-      try {
-        if (!actualBankCode) {
-          // Try to look up bank code from our mapping using bankName
-          const codeMap: Record<string, string> = {
-            GTBank: "058",
-            "Access Bank": "044",
-            "Zenith Bank": "057",
-            UBA: "033",
-            "First Bank": "011",
-            "Fidelity Bank": "070",
-            "Sterling Bank": "032",
-            "Union Bank": "032",
-            "Wema Bank": "035",
-            "Polaris Bank": "076",
-            Ecobank: "050",
-            "Stanbic IBTC": "221",
-          };
-          actualBankCode = codeMap[bankName];
-        }
-
-        if (actualBankCode) {
-          const resolveRes = await psRequest("GET", `/bank/resolve?account_number=${accountNumber}&bank_code=${actualBankCode}`);
-          accountName = resolveRes.data?.account_name || null;
-        }
-      } catch (resolveErr: any) {
-        console.warn("Account resolution failed:", resolveErr.message);
-      }
-
-      if (!accountName) {
-        accountName = business.owner.fullName || "Recipient";
-      }
-
-      if (!actualBankCode) {
-        return res.status(400).json({ error: "Unable to determine bank code. Please select a supported bank." });
-      }
-
-      // Create transfer recipient
-      const recipientRes = await psRequest("POST", "/transferrecipient", {
-        type: "nuban",
-        name: accountName,
-        account_number: accountNumber,
-        bank_code: actualBankCode,
-        currency: "NGN",
+      const totalEarned = await prisma.feedback.aggregate({
+        where: { businessId },
+        _sum: { tipAmount: true },
       });
 
-      const recipientCode = recipientRes.data?.recipient_code;
-      if (!recipientCode) {
-        return res.status(500).json({ error: "Failed to create transfer recipient" });
-      }
-
-      // Initiate transfer
-      const transferRes = await psRequest("POST", "/transfer", {
-        source: "balance",
-        amount: amount * 100,
-        recipient: recipientCode,
-        reason: `Withdrawal for ${business.name}`,
+      const totalWithdrawn = await prisma.withdrawal.aggregate({
+        where: { businessId },
+        _sum: { amount: true },
       });
 
-      if (!transferRes.status) {
-        return res.status(500).json({ error: transferRes.message || "Transfer failed" });
+      const totalEarnedAmount = totalEarned._sum?.tipAmount ?? 0;
+      const totalWithdrawnAmount = totalWithdrawn._sum?.amount ?? 0;
+      const availableBalance = totalEarnedAmount - totalWithdrawnAmount;
+      const fee = Math.ceil(amount * 0.03);
+      const totalDeduction = amount + fee;
+
+      if (totalDeduction > availableBalance) {
+        return res.status(400).json({ error: "Insufficient balance" });
       }
 
-      // Record withdrawal
       const withdrawal = await prisma.withdrawal.create({
         data: {
           businessId,
           amount,
           accountNumber,
           bankName,
-          bankCode: actualBankCode,
+          bankCode,
           accountName,
-          status: "COMPLETED",
+          status: "PENDING",
         },
       });
 
-      res.status(201).json({
-        message: "Withdrawal successful",
-        withdrawal,
-        transfer: transferRes.data,
-      });
+      res.json({ success: true, withdrawal });
     } catch (error: any) {
-      console.error("Withdrawal error:", error);
-      res.status(500).json({ error: error.message || "Failed to process withdrawal" });
+      console.error("Create withdrawal error:", error);
+      res.status(500).json({ error: error?.message || "Failed to create withdrawal" });
     }
   }
 );
 
-router.post(
-  "/confirm",
-  authenticate,
-  async (req: AuthRequest, res: Response) => {
-    res.status(501).json({ error: "Endpoint disabled" });
+// Get business by user (for wallet page to select business)
+router.get("/my-businesses", authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const businesses = await prisma.business.findMany({
+      where: { ownerId: userId },
+      select: { id: true, name: true, email: true },
+    });
+
+    res.json({ businesses });
+  } catch (error: any) {
+    console.error("My businesses error:", error);
+    res.status(500).json({ error: error?.message || "Failed to get businesses" });
   }
-);
+});
+
+// Get wallet summary across all businesses for the user
+router.get("/summary", authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const businesses = await prisma.business.findMany({
+      where: { ownerId: userId },
+      select: { id: true },
+    });
+
+    const businessIds = businesses.map(b => b.id);
+
+    const totalEarned = await prisma.feedback.aggregate({
+      where: { businessId: { in: businessIds } },
+      _sum: { tipAmount: true },
+    });
+
+    const totalWithdrawn = await prisma.withdrawal.aggregate({
+      where: { businessId: { in: businessIds } },
+      _sum: { amount: true },
+    });
+
+    const totalEarnedAmount = totalEarned._sum?.tipAmount ?? 0;
+    const totalWithdrawnAmount = totalWithdrawn._sum?.amount ?? 0;
+    const availableBalance = totalEarnedAmount - totalWithdrawnAmount;
+
+    res.json({
+      wallet: {
+        totalEarned: totalEarnedAmount,
+        totalWithdrawn: totalWithdrawnAmount,
+        availableBalance,
+      },
+    });
+  } catch (error: any) {
+    console.error("Wallet summary error:", error);
+    res.status(500).json({ error: error?.message || "Failed to get wallet summary" });
+  }
+});
+
+// Get withdrawal history for all businesses
+router.get("/history/all", authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const businesses = await prisma.business.findMany({
+      where: { ownerId: userId },
+      select: { id: true },
+    });
+
+    const businessIds = businesses.map(b => b.id);
+
+    const withdrawals = await prisma.withdrawal.findMany({
+      where: { businessId: { in: businessIds } },
+      orderBy: { createdAt: "desc" },
+    });
+
+    res.json({ withdrawals });
+  } catch (error: any) {
+    console.error("All withdrawals error:", error);
+    res.status(500).json({ error: error?.message || "Failed to get withdrawals" });
+  }
+});
 
 export default router;
