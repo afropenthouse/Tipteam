@@ -131,7 +131,7 @@ export const signUp = async (input: { fullName: string; email: string; password:
   });
   
   const data = await handleResponse(res);
-  const { user, token } = data as { user: User; token: string };
+  const { user, token, message } = data as { user: User; token: string; message?: string };
   localStorage.setItem("ttt:token", token);
   localStorage.setItem("ttt:user", JSON.stringify(user));
   return user;
@@ -186,7 +186,7 @@ export const verifyEmail = async (email: string, code: string) => {
   });
   
   const data = await handleResponse(res);
-  const { user, token } = data as { user: User; token: string };
+  const { user, token, message } = data as { user: User; token: string; message?: string };
   localStorage.setItem("ttt:token", token);
   localStorage.setItem("ttt:user", JSON.stringify(user));
   return { user, token };
