@@ -178,6 +178,16 @@ router.get("/public/:id", async (req: AuthRequest, res: Response) => {
         address: true,
         googleBusinessUrl: true,
         createdAt: true,
+        menus: {
+          select: {
+            id: true,
+            name: true,
+            publicId: true,
+            createdAt: true,
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 1, // Only get the most recent menu
+        }
       }
     });
 

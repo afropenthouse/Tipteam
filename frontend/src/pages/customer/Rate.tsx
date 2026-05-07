@@ -224,15 +224,29 @@ export default function Rate() {
                   onClick={() => setStep("experience")}
                   className="w-full bg-gradient-primary shadow-elegant text-base py-6"
                 >
-                  Give Feedback/Complain
+                  Give Feedback/Complaint
                 </Button>
                 <Button
-                  variant="outline"
                   onClick={() => setStep("tip")}
-                  className="w-full text-base py-6"
+                  className="w-full bg-gradient-primary shadow-elegant text-base py-6"
                 >
                   Tip a team member
                 </Button>
+                {business.menus && business.menus.length > 0 && (
+                  <Button
+                    asChild
+                    className="w-full bg-gradient-primary shadow-elegant text-base py-6"
+                  >
+                    <a
+                      href={`/menu/${business.menus[0].publicId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2"
+                    >
+                      View {business.menus[0].name}
+                    </a>
+                  </Button>
+                )}
                 {business.googleBusinessUrl && (
                   <Button
                     asChild

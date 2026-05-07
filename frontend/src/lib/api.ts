@@ -87,6 +87,12 @@ export type Business = {
   menuQrCode?: string;
   createdAt: string;
   updatedAt?: string;
+  menus?: Array<{
+    id: string;
+    name: string;
+    publicId: string;
+    createdAt: string;
+  }>;
 };
 
 export type Feedback = {
