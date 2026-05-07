@@ -28,7 +28,7 @@ export default function NewBusiness() {
   const user = useCurrentUser();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({ name: "", email: "", phone: "", address: "" });
+  const [form, setForm] = useState({ name: "", email: "", phone: "", address: "", googleBusinessUrl: "" });
   const [subscriptionStatus, setSubscriptionStatus] = useState<any>(null);
   const [checkingSubscription, setCheckingSubscription] = useState(true);
 
@@ -249,6 +249,15 @@ export default function NewBusiness() {
         <div className="space-y-2">
           <Label>Business address</Label>
           <Textarea required value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+        </div>
+        <div className="space-y-2">
+          <Label>Google Business URL (optional)</Label>
+          <Input 
+            type="url" 
+            placeholder="https://maps.google.com/..."
+            value={form.googleBusinessUrl} 
+            onChange={(e) => setForm({ ...form, googleBusinessUrl: e.target.value })} 
+          />
         </div>
         <div className="flex justify-end gap-2">
           <Button type="button" variant="ghost" onClick={() => navigate(-1)}>Cancel</Button>

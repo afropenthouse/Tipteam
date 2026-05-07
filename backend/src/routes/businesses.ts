@@ -56,6 +56,7 @@ router.post(
     body("email").isEmail().normalizeEmail().withMessage("Valid email is required"),
     body("phone").trim().notEmpty().withMessage("Phone is required"),
     body("address").trim().notEmpty().withMessage("Address is required"),
+    body("googleBusinessUrl").optional().isURL().withMessage("Must be a valid URL"),
   ],
   async (req: AuthRequest, res: Response) => {
     try {
@@ -83,7 +84,7 @@ router.post(
         });
       }
 
-      const { name, email, phone, address } = req.body;
+      const { name, email, phone, address, googleBusinessUrl } = req.body;
 
       const business = await prisma.business.create({
         data: {
@@ -92,6 +93,7 @@ router.post(
           email,
           phone,
           address,
+          googleBusinessUrl,
         },
       });
 
@@ -110,6 +112,7 @@ router.put(
     body("email").optional().isEmail().normalizeEmail(),
     body("phone").optional().trim().notEmpty(),
     body("address").optional().trim().notEmpty(),
+    body("googleBusinessUrl").optional().isURL(),
   ],
   async (req: AuthRequest, res: Response) => {
     try {
@@ -118,7 +121,7 @@ router.put(
         return res.status(400).json({ errors: errors.array() });
       }
 
-      const { name, email, phone, address } = req.body;
+      const { name, email, phone, address, googleBusinessUrl } = req.body;
       const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
 
       const existing = await prisma.business.findFirst({
@@ -131,7 +134,7 @@ router.put(
 
       const business = await prisma.business.update({
         where: { id },
-        data: { name, email, phone, address },
+        data: { name, email, phone, address, googleBusinessUrl },
       });
 
       res.json({ business });
@@ -173,6 +176,7 @@ router.get("/public/:id", async (req: AuthRequest, res: Response) => {
         email: true,
         phone: true,
         address: true,
+        googleBusinessUrl: true,
         createdAt: true,
       }
     });
@@ -236,7 +240,8 @@ router.get("/menu/:publicId", async (req: AuthRequest, res: Response) => {
             name: true,
             email: true,
             phone: true,
-            address: true
+            address: true,
+            googleBusinessUrl: true
           }
         }
       }

@@ -233,6 +233,22 @@ export default function Rate() {
                 >
                   Tip a team member
                 </Button>
+                {business.googleBusinessUrl && (
+                  <Button
+                    asChild
+                    className="w-full bg-gradient-primary shadow-elegant text-base py-6"
+                  >
+                    <a
+                      href={business.googleBusinessUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2"
+                    >
+                      <Star className="h-5 w-5" />
+                      Rate on Google
+                    </a>
+                  </Button>
+                )}
               </div>
             </div>
           )}

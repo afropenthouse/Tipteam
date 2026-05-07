@@ -49,13 +49,17 @@ router.post(
 
       await sendVerificationEmail(email, fullName, verificationCode);
 
-      const token = generateToken(user.id);
       res.status(201).json({
+        message: "Account created successfully. Please check your email for verification code.",
         user: { id: user.id, fullName: user.fullName, email: user.email, isVerified: user.isVerified },
-        token,
       });
     } catch (error) {
       console.error("Signup error:", error);
+      
+      if (error instanceof Error && 'code' in error && error.code === 'P2002') {
+        return res.status(400).json({ error: "An account with that email already exists" });
+      }
+      
       res.status(500).json({ error: "Failed to create account" });
     }
   }
@@ -86,6 +90,15 @@ router.post(
         return res.status(401).json({ error: "Invalid email or password" });
       }
 
+      if (!user.isVerified) {
+        return res.status(403).json({ 
+          error: "Please verify your email before logging in",
+          requiresVerification: true,
+          email: user.email,
+          fullName: user.fullName
+        });
+      }
+
       const token = generateToken(user.id);
       res.json({
         user: { id: user.id, fullName: user.fullName, email: user.email, isVerified: user.isVerified },
@@ -110,6 +123,55 @@ router.get("/me", authenticate, async (req: AuthRequest, res: Response) => {
     res.json({ user });
   } catch (error) {
     res.status(500).json({ error: "Failed to get user" });
+  }
+});
+
+router.post("/resend-verification", async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ error: "Email is required" });
+    }
+
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      return res.status(400).json({ error: "User not found" });
+    }
+
+    if (user.isVerified) {
+      return res.status(400).json({ error: "Email is already verified" });
+    }
+
+    // Mark any existing verification codes as used
+    await prisma.verification.updateMany({
+      where: {
+        userId: user.id,
+        type: "EMAIL_VERIFICATION",
+        usedAt: null,
+      },
+      data: {
+        usedAt: new Date(),
+      },
+    });
+
+    // Generate new verification code
+    const verificationCode = generateVerificationCode();
+
+    await prisma.verification.create({
+      data: {
+        userId: user.id,
+        type: "EMAIL_VERIFICATION",
+        code: verificationCode,
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      },
+    });
+
+    await sendVerificationEmail(email, user.fullName, verificationCode);
+
+    res.json({ message: "Verification code sent successfully" });
+  } catch (error) {
+    console.error("Resend verification error:", error);
+    res.status(500).json({ error: "Failed to send verification code" });
   }
 });
 

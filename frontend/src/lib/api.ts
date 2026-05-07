@@ -83,6 +83,7 @@ export type Business = {
   email: string;
   phone: string;
   address: string;
+  googleBusinessUrl?: string;
   menuQrCode?: string;
   createdAt: string;
   updatedAt?: string;

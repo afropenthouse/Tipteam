@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { Loader2, FileText, Download, ExternalLink } from "lucide-react";
+import { Loader2, FileText, Download, ExternalLink, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function Menu() {
@@ -9,6 +9,7 @@ export default function Menu() {
   const [error, setError] = useState<string | null>(null);
   const [cloudinaryUrl, setCloudinaryUrl] = useState<string | null>(null);
   const [menuName, setMenuName] = useState<string>("Menu");
+  const [googleBusinessUrl, setGoogleBusinessUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!publicId) {
@@ -27,6 +28,7 @@ export default function Menu() {
         
         setMenuName(data.menu.name || "Menu");
         setCloudinaryUrl(data.menu.cloudinaryUrl);
+        setGoogleBusinessUrl(data.menu.business?.googleBusinessUrl || null);
         setLoading(false);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load menu");
@@ -76,6 +78,14 @@ export default function Menu() {
         <div className="bg-gray-100 p-4 flex justify-between items-center">
           <h2 className="font-semibold">{menuName}</h2>
           <div className="flex gap-2">
+            {googleBusinessUrl && (
+              <Button asChild variant="outline" className="bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100">
+                <a href={googleBusinessUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
+                  <Star className="h-4 w-4" />
+                  Rate on Google
+                </a>
+              </Button>
+            )}
              <Button asChild variant="secondary">
                <a href={`${import.meta.env.VITE_API_URL}/businesses/menu/${publicId}/pdf`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
                  <ExternalLink className="h-4 w-4" />

@@ -171,7 +171,7 @@ export default function MenuQRGenerator() {
       {/* Upload New Menu */}
       <Card>
         <CardHeader>
-          <CardTitle>Upload Menu</CardTitle>
+          <CardTitle>Upload menu/product/service list</CardTitle>
           <CardDescription>
             Upload a PDF file to generate a QR code
           </CardDescription>
