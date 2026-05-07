@@ -3,7 +3,6 @@ import { body, validationResult } from "express-validator";
 import multer from "multer";
 import prisma from "../lib/prisma.js";
 import { authenticate, AuthRequest } from "../middleware/auth.js";
-import cloudinary from "../lib/cloudinary.js";
 
 const router = Router();
 
@@ -188,43 +187,31 @@ router.get("/public/:id", async (req: AuthRequest, res: Response) => {
   }
 });
 
-// Serve PDF file from Cloudinary (proxy)
+// Serve PDF file directly from database
 router.get("/menu/:publicId/pdf", async (req: AuthRequest, res: Response) => {
   try {
     const publicId = Array.isArray(req.params.publicId) ? req.params.publicId[0] : req.params.publicId;
 
     const menu = await prisma.menu.findFirst({
       where: { publicId },
+      select: {
+        id: true,
+        name: true,
+        pdf: true,
+      }
     });
 
-    if (!menu) {
-      return res.status(404).json({ error: "Menu not found" });
+    if (!menu || !menu.pdf) {
+      return res.status(404).json({ error: "Menu not found or PDF missing" });
     }
 
-    // Build Cloudinary delivery URL directly
-    // menu.cloudinaryUrl format: "business-menus/abc123" (folder/public_id)
-    const deliveryUrl = `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/raw/upload/${menu.cloudinaryUrl}`;
-    
-    console.log('Fetching PDF from Cloudinary:', deliveryUrl);
+    console.log('Serving PDF from database for menu:', menu.name);
 
-    // Try to fetch the PDF from Cloudinary
-    const response = await fetch(deliveryUrl);
-    
-    if (response.ok) {
-      console.log('Successfully fetched PDF from Cloudinary');
-      const buffer = await response.arrayBuffer();
-      
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `inline; filename="${menu.name}.pdf"`);
-      res.send(Buffer.from(buffer));
-      return;
-    } else {
-      console.log('Cloudinary fetch failed:', response.status, response.statusText);
-    }
-
-    // As a last resort, redirect to Cloudinary
-    console.log('Redirecting to Cloudinary URL:', deliveryUrl);
-    return res.redirect(307, deliveryUrl);
+    // Send PDF buffer directly
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${menu.name}.pdf"`);
+    res.setHeader('Content-Length', menu.pdf.length.toString());
+    res.send(Buffer.from(menu.pdf));
   } catch (error) {
     console.error('PDF serve error:', error);
     res.status(500).json({ error: "Failed to serve PDF" });
@@ -238,7 +225,12 @@ router.get("/menu/:publicId", async (req: AuthRequest, res: Response) => {
 
     const menu = await prisma.menu.findFirst({
       where: { publicId },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        businessId: true,
+        createdAt: true,
+        publicId: true,
         business: {
           select: {
             name: true,
@@ -274,7 +266,9 @@ router.get("/:id/menus", authenticate, async (req: AuthRequest, res: Response) =
       return res.status(404).json({ error: "Business not found" });
     }
 
-    res.json({ menus: business.menus });
+    // Return menus without the pdf binary data
+    const menusWithoutPdf = business.menus.map(({ pdf, ...rest }) => rest);
+    res.json({ menus: menusWithoutPdf });
   } catch (error) {
     res.status(500).json({ error: "Failed to get menus" });
   }
@@ -298,7 +292,7 @@ router.post("/:id/menus", authenticate, upload.single('menu'), async (req: AuthR
       return res.status(400).json({ error: "No file uploaded" });
     }
 
-    // Generate a unique URL-safe public ID for the menu
+    // Generate a unique publicId for the menu
     const generatePublicId = () => {
       const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
       let result = '';
@@ -310,34 +304,13 @@ router.post("/:id/menus", authenticate, upload.single('menu'), async (req: AuthR
 
     const menuPublicId = generatePublicId();
 
-    // Upload PDF to Cloudinary as a public raw file
-    const result = await new Promise<any>((resolve, reject) => {
-      cloudinary.uploader.upload_stream(
-        {
-          resource_type: 'raw',
-          folder: 'business-menus',
-          public_id: menuPublicId,
-          format: 'pdf',
-          type: 'upload',
-          access_mode: 'public',
-        },
-        (error, result) => {
-          if (error) reject(error);
-          else resolve(result);
-        }
-      ).end(req.file!.buffer);
-    });
-
-    // Cloudinary returns the full public_id with folder
-    const cloudinaryPublicId = result.public_id;
-
-    // Store the Cloudinary public_id in DB (not the URL)
+    // Store PDF directly in database as binary
     const menu = await prisma.menu.create({
       data: {
         businessId: id,
         name: name || 'Menu',
-        cloudinaryUrl: cloudinaryPublicId,
         publicId: menuPublicId,
+        pdf: Buffer.from(req.file.buffer),
       },
     });
 
@@ -345,14 +318,19 @@ router.post("/:id/menus", authenticate, upload.single('menu'), async (req: AuthR
 
     res.json({
       message: "Menu uploaded successfully",
-      menu,
+      menu: {
+        id: menu.id,
+        name: menu.name,
+        publicId: menu.publicId,
+        createdAt: menu.createdAt,
+      },
       menuUrl: customMenuUrl
     });
   } catch (error) {
     console.error('Menu upload error:', error);
     res.status(500).json({ error: "Failed to upload menu" });
-  }
-});
+   }
+ });
 
 // Delete a menu
 router.delete("/:id/menus/:menuId", authenticate, async (req: AuthRequest, res: Response) => {

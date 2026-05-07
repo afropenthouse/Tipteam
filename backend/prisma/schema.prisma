@@ -17,7 +17,6 @@ model User {
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   businesses    Business[]
-  menus         Menu[]
   subscriptions Subscription[]
   verifications Verification[]
 
@@ -56,16 +55,14 @@ model Business {
 }
 
 model Menu {
-  id            String    @id @default(uuid())
-  businessId    String?
-  name          String
-  cloudinaryUrl String
-  publicId      String
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  userId        String?
-  business      Business? @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  user          User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id         String    @id @default(uuid())
+  businessId String?
+  name       String
+  publicId   String    @unique  // Public identifier used in QR code URLs
+  pdf        Bytes?    // Store PDF as binary data in database
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  business   Business? @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   @@map("menus")
 }
