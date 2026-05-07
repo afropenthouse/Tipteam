@@ -16,7 +16,7 @@ export default function MenuQRViewer() {
       return;
     }
 
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+    const apiUrl = import.meta.env.VITE_API_URL;
     
     // Fetch menu from backend API to verify it exists
     fetch(`${apiUrl}/businesses/menu/${publicId}`)

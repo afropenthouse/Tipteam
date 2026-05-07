@@ -1,7 +1,7 @@
 export const PAYSTACK_PUBLIC_KEY = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || 'pk_test_1234567890abcdef';
 
 export const initializeSubscriptionPayment = async (email: string, amount: number, planType: string) => {
-  const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/paystack/initialize-subscription`, {
+  const response = await fetch(`${import.meta.env.VITE_API_URL}/paystack/initialize-subscription`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -19,7 +19,7 @@ export const initializeSubscriptionPayment = async (email: string, amount: numbe
 };
 
 export const verifySubscriptionPayment = async (reference: string, planType: string) => {
-  const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/paystack/verify-subscription`, {
+  const response = await fetch(`${import.meta.env.VITE_API_URL}/paystack/verify-subscription`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

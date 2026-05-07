@@ -68,7 +68,7 @@ export default function WalletPage() {
   const [amount, setAmount] = useState<string>("");
   const { toast } = useToast();
 
-  const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+  const apiUrl = import.meta.env.VITE_API_URL;
   const token = localStorage.getItem("ttt:token");
 
   useEffect(() => {
