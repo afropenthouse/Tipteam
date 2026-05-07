@@ -65,6 +65,50 @@ export const api = {
     });
     return handleResponse(res);
   },
+
+  auth: {
+    async register(email: string, password: string, fullName: string) {
+      const res = await fetch(`${API_URL}/auth/signup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, fullName }),
+      });
+      return handleResponse(res);
+    },
+
+    async login(email: string, password: string) {
+      const res = await fetch(`${API_URL}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await handleResponse(res);
+      localStorage.setItem("ttt:token", data.token);
+      localStorage.setItem("ttt:user", JSON.stringify(data.user));
+      return data;
+    },
+
+    async verifyEmail(email: string, code: string) {
+      const res = await fetch(`${API_URL}/auth/verify-email`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, code }),
+      });
+      const data = await handleResponse(res);
+      localStorage.setItem("ttt:token", data.token);
+      localStorage.setItem("ttt:user", JSON.stringify(data.user));
+      return data;
+    },
+
+    async resendVerification(email: string) {
+      const res = await fetch(`${API_URL}/auth/resend-verification`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      return handleResponse(res);
+    },
+  },
 };
 
 export type User = {
@@ -131,9 +175,7 @@ export const signUp = async (input: { fullName: string; email: string; password:
   });
   
   const data = await handleResponse(res);
-  const { user, token, message } = data as { user: User; token: string; message?: string };
-  localStorage.setItem("ttt:token", token);
-  localStorage.setItem("ttt:user", JSON.stringify(user));
+  const { user, message } = data as { user: User; message?: string };
   return user;
 };
 
@@ -145,6 +187,11 @@ export const signIn = async (email: string, password: string) => {
     },
     body: JSON.stringify({ email, password }),
   });
+  
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.error || "Sign in failed");
+  }
   
   const data = await handleResponse(res);
   const { user, token } = data as { user: User; token: string };

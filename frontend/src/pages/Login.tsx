@@ -10,6 +10,7 @@ export default function Login() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({ email: "", password: "" });
+  const [needsVerification, setNeedsVerification] = useState(false);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -17,8 +18,13 @@ export default function Login() {
     try {
       await signIn(form.email, form.password);
       navigate("/dashboard");
-    } catch (err) {
-      toast({ title: "Sign in failed", description: (err as Error).message, variant: "destructive" });
+    } catch (err: any) {
+      if (err.message?.includes("verify your email")) {
+        setNeedsVerification(true);
+        toast({ title: "Verification required", description: "Please verify your email before logging in." });
+      } else {
+        toast({ title: "Sign in failed", description: err.message, variant: "destructive" });
+      }
     } finally {
       setLoading(false);
     }
@@ -52,6 +58,13 @@ export default function Login() {
           <Button type="submit" disabled={loading} className="w-full bg-gradient-primary shadow-elegant">
             {loading ? "Signing in..." : "Sign in"}
           </Button>
+          {needsVerification && (
+            <div className="text-center">
+              <Link to="/verify-email" state={{ email: form.email }} className="text-sm text-primary hover:underline">
+                Verify your email
+              </Link>
+            </div>
+          )}
           <p className="text-center text-sm text-muted-foreground">
             New here?{" "}
             <Link to="/signup" className="font-medium text-primary hover:underline">
