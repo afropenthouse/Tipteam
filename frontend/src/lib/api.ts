@@ -159,7 +159,13 @@ export const updateUser = async (patch: Partial<User>) => {
 };
 
 export const verifyEmail = async (email: string, code: string) => {
-  return api.post<{ message: string }>("/auth/verify-email", { email, code });
+  const result = await api.post<{ message: string }>("/auth/verify-email", { email, code });
+  // Update the user's verification status in localStorage
+  const user = getCurrentUser();
+  if (user) {
+    updateUser({ ...user, isVerified: true });
+  }
+  return result;
 };
 
 export const forgotPassword = async (email: string) => {
