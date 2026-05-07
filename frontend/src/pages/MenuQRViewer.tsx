@@ -18,16 +18,16 @@ export default function MenuQRViewer() {
 
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
     
-    // Fetch menu from backend API
+    // Fetch menu from backend API to verify it exists
     fetch(`${apiUrl}/businesses/menu/${publicId}`)
       .then(res => {
         if (!res.ok) throw new Error('Menu not found');
         return res.json();
       })
       .then(data => {
-        // Use proxy endpoint for PDF display through backend
-        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-        setPdfUrl(`${apiUrl}/businesses/menu/${publicId}/pdf`);
+        // Use backend PDF proxy endpoint (streams through backend, no Cloudinary exposure)
+        const pdfUrl = `${apiUrl}/businesses/menu/${publicId}/pdf`;
+        setPdfUrl(pdfUrl);
         setMenuName(data.menu.name);
       })
       .catch(err => {
