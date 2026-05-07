@@ -13,9 +13,19 @@ dotenv.config();
 const app = express();
 
 const allowedOrigins = new Set(
-  [process.env.FRONTEND_URL, "http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:5173", "https://www.tracla.com", "https://tracla.com", "https://tipteam.vercel.app", "https://tipteam-k66s.onrender.com", process.env.RENDER_EXTERNAL_HOSTNAME].filter(
-    (origin): origin is string => Boolean(origin)
-  )
+  [
+    process.env.FRONTEND_URL,
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "https://www.tracla.com",
+    "https://tracla.com",
+    "https://tipteam.vercel.app",
+    "https://tipteam-k66s.onrender.com",
+    "https://usevenuecheck.com",
+    "https://www.usevenuecheck.com",
+    process.env.RENDER_EXTERNAL_HOSTNAME
+  ].filter((origin): origin is string => Boolean(origin))
 );
 
 app.use(
