@@ -3,22 +3,40 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: Number(process.env.SMTP_PORT),
-  secure: true,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-  tls: {
-    rejectUnauthorized: false, // Allow self-signed certificates for development
-  },
-});
+const hasSmtpConfig = process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS;
+
+const transporter = hasSmtpConfig
+  ? nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT) || 587,
+      secure: true,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+      connectionTimeout: 5000,
+      greetingTimeout: 5000,
+      socketTimeout: 5000,
+    })
+  : null;
+
+async function sendMail(mailOptions: { to: string; subject: string; html: string }) {
+  if (!transporter) {
+    console.warn("SMTP not configured - skipping email send");
+    return;
+  }
+  try {
+    await transporter.sendMail({
+      from: process.env.FROM_EMAIL || process.env.SMTP_USER,
+      ...mailOptions,
+    });
+  } catch (error) {
+    console.error("Failed to send email:", error);
+  }
+}
 
 export const sendVerificationEmail = async (email: string, fullName: string, code: string) => {
-  await transporter.sendMail({
-    from: process.env.FROM_EMAIL,
+  await sendMail({
     to: email,
     subject: "Verify your Tracla account",
     html: `
@@ -38,8 +56,7 @@ export const sendVerificationEmail = async (email: string, fullName: string, cod
 };
 
 export const sendPasswordResetEmail = async (email: string, fullName: string, code: string) => {
-  await transporter.sendMail({
-    from: process.env.FROM_EMAIL,
+  await sendMail({
     to: email,
     subject: "Reset your Tracla password",
     html: `
@@ -64,8 +81,7 @@ export const sendWithdrawalVerificationEmail = async (
   code: string,
   details: { amount: number; businessName: string; accountNumber: string }
 ) => {
-  await transporter.sendMail({
-    from: process.env.FROM_EMAIL,
+  await sendMail({
     to: email,
     subject: "Confirm your Tracla withdrawal",
     html: `
