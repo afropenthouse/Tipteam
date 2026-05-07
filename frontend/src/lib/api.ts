@@ -122,14 +122,32 @@ export type Withdrawal = {
 };
 
 export const signUp = async (input: { fullName: string; email: string; password: string }) => {
-  const { user, token } = await api.post<{ user: User; token: string }>("/auth/signup", input);
+  const res = await fetch(`${API_URL}/auth/signup`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+  
+  const data = await handleResponse(res);
+  const { user, token } = data as { user: User; token: string };
   localStorage.setItem("ttt:token", token);
   localStorage.setItem("ttt:user", JSON.stringify(user));
   return user;
 };
 
 export const signIn = async (email: string, password: string) => {
-  const { user, token } = await api.post<{ user: User; token: string }>("/auth/login", { email, password });
+  const res = await fetch(`${API_URL}/auth/login`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ email, password }),
+  });
+  
+  const data = await handleResponse(res);
+  const { user, token } = data as { user: User; token: string };
   localStorage.setItem("ttt:token", token);
   localStorage.setItem("ttt:user", JSON.stringify(user));
   return user;
@@ -159,22 +177,55 @@ export const updateUser = async (patch: Partial<User>) => {
 };
 
 export const verifyEmail = async (email: string, code: string) => {
-  const { user, token } = await api.post<{ user: User; token: string }>("/auth/verify-email", { email, code });
+  const res = await fetch(`${API_URL}/auth/verify-email`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ email, code }),
+  });
+  
+  const data = await handleResponse(res);
+  const { user, token } = data as { user: User; token: string };
   localStorage.setItem("ttt:token", token);
   localStorage.setItem("ttt:user", JSON.stringify(user));
   return { user, token };
 };
 
 export const forgotPassword = async (email: string) => {
-  return api.post<{ message: string }>("/auth/forgot-password", { email });
+  const res = await fetch(`${API_URL}/auth/forgot-password`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ email }),
+  });
+  
+  return handleResponse(res);
 };
 
 export const resetPassword = async (email: string, code: string, password: string) => {
-  return api.post<{ message: string }>("/auth/reset-password", { email, code, password });
+  const res = await fetch(`${API_URL}/auth/reset-password`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ email, code, password }),
+  });
+  
+  return handleResponse(res);
 };
 
 export const forgotPasswordDirect = async (email: string, password: string) => {
-  return api.post<{ message: string }>("/auth/forgot-password-direct", { email, password });
+  const res = await fetch(`${API_URL}/auth/forgot-password-direct`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ email, password }),
+  });
+  
+  return handleResponse(res);
 };
 
 export const listBusinesses = async (): Promise<Business[]> => {
