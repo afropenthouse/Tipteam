@@ -17,7 +17,7 @@ export default function SignUp() {
     try {
       await signUp(form);
       toast({ title: "Check your email", description: "We've sent you a verification code to complete your registration." });
-      navigate("/verify-email");
+      navigate("/verify-email", { state: { email: form.email } });
     } catch (err) {
       toast({ title: "Signup failed", description: (err as Error).message, variant: "destructive" });
     } finally {

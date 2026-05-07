@@ -49,9 +49,12 @@ router.post(
 
       await sendVerificationEmail(email, fullName, verificationCode);
 
+      const token = generateToken(user.id);
+
       res.status(201).json({
         message: "Account created successfully. Please check your email for verification code.",
         user: { id: user.id, fullName: user.fullName, email: user.email, isVerified: user.isVerified },
+        token,
       });
     } catch (error) {
       console.error("Signup error:", error);
@@ -211,7 +214,13 @@ router.post("/verify-email", async (req: Request, res: Response) => {
       data: { usedAt: new Date() },
     });
 
-    res.json({ message: "Email verified successfully" });
+    const token = generateToken(user.id);
+
+    res.json({ 
+      message: "Email verified successfully",
+      user: { id: user.id, fullName: user.fullName, email: user.email, isVerified: true },
+      token,
+    });
   } catch (error) {
     res.status(500).json({ error: "Failed to verify email" });
   }
