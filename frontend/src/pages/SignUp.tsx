@@ -11,13 +11,16 @@ export default function SignUp() {
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({ fullName: "", email: "", password: "" });
 
-  const onSubmit = async (e: React.FormEvent) => {
+   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
       await signUp(form);
-      toast({ title: "Check your email", description: "We've sent you a verification code to complete your registration." });
-      navigate("/verify-email", { state: { email: form.email } });
+      // Verification removed - users are automatically verified on signup
+      // toast({ title: "Check your email", description: "We've sent you a verification code to complete your registration." });
+      // navigate("/verify-email", { state: { email: form.email } });
+      toast({ title: "Account created", description: "Welcome aboard!" });
+      navigate("/dashboard");
     } catch (err) {
       toast({ title: "Signup failed", description: (err as Error).message, variant: "destructive" });
     } finally {

@@ -146,7 +146,7 @@ export default function BusinessDetail() {
             <div className="relative">
               <div className="absolute -top-6 left-0 right-0 flex justify-center z-10">
                 <span className="inline-block text-black text-sm font-bold px-4 py-2 whitespace-nowrap text-center">
-                  Scan to give feedback/Complaint
+                  Scan to Give feedback & Complaint
                 </span>
               </div>
               <QRCodeCanvas id="biz-qr" value={rateUrl} size={200} level="H" includeMargin />

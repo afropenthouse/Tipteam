@@ -15,57 +15,59 @@ router.post(
     body("email").isEmail().normalizeEmail().withMessage("Valid email is required"),
     body("password").isLength({ min: 6 }).withMessage("Password must be at least 6 characters"),
   ],
-  async (req: Request, res: Response) => {
-    try {
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
-      }
+   async (req: Request, res: Response) => {
+     try {
+       const errors = validationResult(req);
+       if (!errors.isEmpty()) {
+         return res.status(400).json({ errors: errors.array() });
+       }
 
-      const { fullName, email, password } = req.body;
+       const { fullName, email, password } = req.body;
 
-      const existingUser = await prisma.user.findUnique({ where: { email } });
-      if (existingUser) {
-        return res.status(400).json({ error: "An account with that email already exists" });
-      }
+       const existingUser = await prisma.user.findUnique({ where: { email } });
+       if (existingUser) {
+         return res.status(400).json({ error: "An account with that email already exists" });
+       }
 
-      const hashedPassword = await bcrypt.hash(password, 10);
-      const verificationCode = generateVerificationCode();
+       const hashedPassword = await bcrypt.hash(password, 10);
 
-      const user = await prisma.user.create({
-        data: {
-          fullName,
-          email,
-          password: hashedPassword,
-          verifications: {
-            create: {
-              type: "EMAIL_VERIFICATION",
-              code: verificationCode,
-              expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-            },
-          },
-        },
-      });
+       // Verification disabled - users are automatically verified
+       const user = await prisma.user.create({
+         data: {
+           fullName,
+           email,
+           password: hashedPassword,
+           isVerified: true,
+           // verifications: {
+           //   create: {
+           //     type: "EMAIL_VERIFICATION",
+           //     code: generateVerificationCode(),
+           //     expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+           //   },
+           // },
+         },
+       });
 
-      await sendVerificationEmail(email, fullName, verificationCode);
+       // Verification email sending disabled
+       // await sendVerificationEmail(email, fullName, verificationCode);
 
-      const token = generateToken(user.id);
+       const token = generateToken(user.id);
 
-      res.status(201).json({
-        message: "Account created successfully. Please check your email for verification code.",
-        user: { id: user.id, fullName: user.fullName, email: user.email, isVerified: user.isVerified },
-        token,
-      });
-    } catch (error) {
-      console.error("Signup error:", error);
-      
-      if (error instanceof Error && 'code' in error && error.code === 'P2002') {
-        return res.status(400).json({ error: "An account with that email already exists" });
-      }
-      
-      res.status(500).json({ error: "Failed to create account" });
-    }
-  }
+       res.status(201).json({
+         message: "Account created successfully",
+         user: { id: user.id, fullName: user.fullName, email: user.email, isVerified: user.isVerified },
+         token,
+       });
+     } catch (error) {
+       console.error("Signup error:", error);
+
+       if (error instanceof Error && 'code' in error && error.code === 'P2002') {
+         return res.status(400).json({ error: "An account with that email already exists" });
+       }
+
+       res.status(500).json({ error: "Failed to create account" });
+     }
+   }
 );
 
 router.post(

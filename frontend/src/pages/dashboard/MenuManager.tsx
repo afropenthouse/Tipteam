@@ -126,7 +126,7 @@ export default function MenuManager() {
       {/* Upload New Menu */}
       <Card>
         <CardHeader>
-          <CardTitle>Upload menu/product/service list</CardTitle>
+          <CardTitle>Upload Menu/Product/Service list</CardTitle>
           <CardDescription>
             Upload a PDF file to create a new menu
           </CardDescription>
