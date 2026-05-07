@@ -24,7 +24,7 @@ import Rate from "./pages/customer/Rate.tsx";
 import Menu from "./pages/Menu.tsx";
 import MenuQRCode from "./pages/dashboard/MenuQRCode.tsx";
 import MenuQRGenerator from "./pages/MenuQRGenerator.tsx";
-import MenuQRGeneratorDashboard from "./pages/dashboard/MenuQRGenerator.tsx";
+import MenuManager from "./pages/dashboard/MenuManager.tsx";
 import MenuQRViewer from "./pages/MenuQRViewer.tsx";
 
 const queryClient = new QueryClient();
@@ -53,7 +53,7 @@ const App = () => (
             <Route path="businesses/new" element={<NewBusiness />} />
             <Route path="businesses/:id" element={<BusinessDetail />} />
             <Route path="businesses/:id/menu-qr" element={<MenuQRCode />} />
-            <Route path="menu-qr-generator" element={<MenuQRGeneratorDashboard />} />
+            <Route path="menu-qr-generator" element={<MenuManager />} />
             <Route path="ratings" element={<Ratings />} />
             <Route path="complaints" element={<Feedback />} />
             <Route path="wallet" element={<WalletPage />} />
