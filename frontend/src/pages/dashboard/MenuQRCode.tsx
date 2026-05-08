@@ -14,6 +14,7 @@ export default function MenuQRCode() {
   const [uploadingMenu, setUploadingMenu] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [menuName, setMenuName] = useState('');
+  const [qrSize, setQrSize] = useState(150);
 
   useEffect(() => {
     if (!id) return;
@@ -31,6 +32,18 @@ export default function MenuQRCode() {
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [id]);
+
+  useEffect(() => {
+    const updateQrSize = () => {
+      const screenWidth = window.innerWidth;
+      const maxSize = Math.min(150, Math.max(100, (screenWidth - 120) / 3)); // Adjust for grid layout
+      setQrSize(Math.max(100, maxSize)); // Minimum 100px for readability
+    };
+
+    updateQrSize();
+    window.addEventListener('resize', updateQrSize);
+    return () => window.removeEventListener('resize', updateQrSize);
+  }, []);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -201,9 +214,10 @@ export default function MenuQRCode() {
                   <div className="flex flex-col items-center gap-3">
                      <QRCodeCanvas 
                        value={menuUrl}
-                       size={150} 
+                       size={qrSize} 
                        level="H" 
                        includeMargin 
+                       className="max-w-full h-auto"
                      />
                     <p className="text-xs text-muted-foreground text-center">
                       Scan to view {menu.name}

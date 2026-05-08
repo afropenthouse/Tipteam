@@ -17,6 +17,7 @@ export default function BusinessDetail() {
   const [wallet, setWallet] = useState({ earned: 0, available: 0, withdrawn: 0 });
   const [loading, setLoading] = useState(true);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [qrSize, setQrSize] = useState(200);
 
   useEffect(() => {
     if (!id) return;
@@ -31,6 +32,18 @@ export default function BusinessDetail() {
 
     walletBalance(id).then(setWallet).catch(console.error);
   }, [id]);
+
+  useEffect(() => {
+    const updateQrSize = () => {
+      const screenWidth = window.innerWidth;
+      const maxSize = Math.min(200, screenWidth - 80);
+      setQrSize(Math.max(150, maxSize)); // Minimum 150px for readability
+    };
+
+    updateQrSize();
+    window.addEventListener('resize', updateQrSize);
+    return () => window.removeEventListener('resize', updateQrSize);
+  }, []);
 
   const rateUrl = useMemo(
     () => (id ? `${window.location.origin}/rate/${id}` : ""),
@@ -136,20 +149,29 @@ export default function BusinessDetail() {
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
-        <div className="rounded-2xl border bg-gradient-mint p-6 shadow-card">
+      <div className="grid gap-6 xl:grid-cols-[1fr_1.2fr]">
+        <div className="rounded-2xl border bg-gradient-mint p-4 sm:p-6 shadow-card">
           <h2 className="font-semibold text-accent-foreground">Your QR code</h2>
           <p className="mt-1 text-xs text-accent-foreground/80">
             Customers scan this to leave feedback and tip your team.
           </p>
-          <div className="mt-5 flex flex-col items-center gap-4 rounded-xl bg-card p-6">
-            <div className="relative">
-              <div className="absolute -top-6 left-0 right-0 flex justify-center z-10">
-                <span className="inline-block text-black text-sm font-bold px-4 py-2 whitespace-nowrap text-center">
+          <div className="mt-4 sm:mt-5 flex flex-col items-center gap-3 sm:gap-4 rounded-xl bg-card p-4 sm:p-6">
+            <div className="relative w-full max-w-[200px]">
+              <div className="absolute -top-5 sm:-top-6 left-0 right-0 flex justify-center z-10 px-2">
+                <span className="inline-block text-black text-xs sm:text-sm font-bold px-2 sm:px-4 py-1 sm:py-2 whitespace-nowrap text-center bg-white/90 backdrop-blur-sm rounded-lg shadow-sm">
                   Scan to Give feedback & Complaint
                 </span>
               </div>
-              <QRCodeCanvas id="biz-qr" value={rateUrl} size={200} level="H" includeMargin />
+              <div className="flex justify-center">
+                <QRCodeCanvas 
+                  id="biz-qr" 
+                  value={rateUrl} 
+                  size={qrSize} 
+                  level="H" 
+                  includeMargin 
+                  className="max-w-full h-auto"
+                />
+              </div>
             </div>
             <div className="w-full break-all rounded-md bg-muted px-3 py-2 text-center text-xs text-muted-foreground">
               {rateUrl}
