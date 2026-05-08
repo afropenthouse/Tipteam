@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { Loader2, FileText, Download, ExternalLink, Star } from "lucide-react";
+import { Loader2, FileText, Download, ExternalLink, Star, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function Menu() {
@@ -10,6 +10,21 @@ export default function Menu() {
   const [menuExists, setMenuExists] = useState<boolean>(false);
   const [menuName, setMenuName] = useState<string>("Menu");
   const [googleBusinessUrl, setGoogleBusinessUrl] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Detect mobile device
+    const checkMobile = () => {
+      const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
+      setIsMobile(/android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent));
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   useEffect(() => {
     if (!publicId) {
@@ -26,6 +41,8 @@ export default function Menu() {
         }
         const data = await response.json();
         
+        const pdfUrl = `${import.meta.env.VITE_API_URL}/businesses/menu/${publicId}/pdf`;
+        setPdfUrl(pdfUrl);
         setMenuName(data.menu.name || "Menu");
         setMenuExists(true);
         setGoogleBusinessUrl(data.menu.business?.googleBusinessUrl || null);
@@ -62,14 +79,176 @@ export default function Menu() {
     );
   }
 
+  const handleDownloadPDF = () => {
+    if (pdfUrl) {
+      const link = document.createElement('a');
+      link.href = pdfUrl;
+      link.download = `${menuName}.pdf`;
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
+  const handleOpenInNewTab = () => {
+    if (pdfUrl) {
+      window.open(pdfUrl, '_blank');
+    }
+  };
+
   if (menuExists) {
     return (
       <div className="min-h-screen bg-white">
-        <iframe
-          src={`${import.meta.env.VITE_API_URL}/businesses/menu/${publicId}/pdf`}
-          className="w-full h-screen"
-          title="Menu PDF"
-        ></iframe>
+        {/* Mobile Header */}
+        {isMobile && (
+          <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-4 py-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-lg font-semibold text-gray-900">{menuName}</h1>
+                <p className="text-sm text-gray-500">Menu</p>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  onClick={handleOpenInNewTab}
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-1"
+                >
+                  <Eye className="h-4 w-4" />
+                  <span className="hidden sm:inline">View</span>
+                </Button>
+                <Button
+                  onClick={handleDownloadPDF}
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-1"
+                >
+                  <Download className="h-4 w-4" />
+                  <span className="hidden sm:inline">Download</span>
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* PDF Viewer */}
+        <div className="relative" style={{ height: isMobile ? 'calc(100vh - 60px)' : '100vh' }}>
+          {isMobile ? (
+            // Mobile: Multiple fallback strategies
+            <div className="w-full h-full flex flex-col">
+              <div className="flex-1 relative">
+                {/* Strategy 1: Try iframe first (works on some mobile browsers) */}
+                <iframe
+                  src={pdfUrl}
+                  className="w-full h-full absolute inset-0"
+                  title={menuName}
+                  style={{ display: 'none' }}
+                  onLoad={(e) => {
+                    const iframe = e.target as HTMLIFrameElement;
+                    // Check if iframe loaded successfully
+                    try {
+                      const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+                      if (iframeDoc && iframeDoc.body.innerHTML.includes('pdf')) {
+                        iframe.style.display = 'block';
+                        document.getElementById('fallback-ui')!.style.display = 'none';
+                      }
+                    } catch (error) {
+                      // Cross-origin error, show fallback
+                      iframe.style.display = 'none';
+                      document.getElementById('fallback-ui')!.style.display = 'flex';
+                    }
+                  }}
+                  onError={() => {
+                    document.getElementById('fallback-ui')!.style.display = 'flex';
+                  }}
+                />
+                
+                {/* Strategy 2: Try embed tag */}
+                <object
+                  data={pdfUrl}
+                  type="application/pdf"
+                  className="w-full h-full absolute inset-0"
+                  title={menuName}
+                  style={{ display: 'none' }}
+                  onLoad={() => {
+                    document.querySelector('object')!.style.display = 'block';
+                    document.getElementById('fallback-ui')!.style.display = 'none';
+                  }}
+                  onError={() => {
+                    document.getElementById('fallback-ui')!.style.display = 'flex';
+                  }}
+                >
+                  {/* Strategy 3: Fallback UI with multiple options */}
+                  <div id="fallback-ui" className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center bg-white">
+                    <FileText className="h-16 w-16 text-gray-400 mb-4" />
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">{menuName}</h3>
+                    <p className="text-gray-600 mb-6">View the menu PDF using one of these options:</p>
+                    
+                    <div className="flex flex-col gap-3 w-full max-w-sm">
+                      {/* Option 1: Open in new tab */}
+                      <Button
+                        onClick={handleOpenInNewTab}
+                        className="w-full bg-gradient-primary text-white"
+                        size="lg"
+                      >
+                        <ExternalLink className="h-5 w-5 mr-2" />
+                        Open Menu in Browser
+                      </Button>
+                      
+                      {/* Option 2: Download */}
+                      <Button
+                        onClick={handleDownloadPDF}
+                        variant="outline"
+                        className="w-full"
+                        size="lg"
+                      >
+                        <Download className="h-5 w-5 mr-2" />
+                        Download Menu PDF
+                      </Button>
+                      
+                      {/* Option 3: Google Docs Viewer (works well on mobile) */}
+                      <Button
+                        onClick={() => window.open(`https://docs.google.com/gview?embedded=1&url=${encodeURIComponent(pdfUrl)}`, '_blank')}
+                        variant="secondary"
+                        className="w-full"
+                        size="lg"
+                      >
+                        <Eye className="h-5 w-5 mr-2" />
+                        View in Google Docs
+                      </Button>
+                    </div>
+                    
+                    <p className="text-xs text-gray-500 mt-6 max-w-xs">
+                      For best viewing experience, use the "Open Menu in Browser" option or download the PDF to your device.
+                    </p>
+                  </div>
+                </object>
+              </div>
+            </div>
+          ) : (
+            // Desktop: Use iframe for better experience
+            <iframe
+              src={pdfUrl}
+              className="w-full h-full"
+              title={menuName}
+            />
+          )}
+        </div>
+
+        {/* Google Business Link */}
+        {googleBusinessUrl && (
+          <div className="fixed bottom-4 right-4 z-20">
+            <Button
+              onClick={() => window.open(googleBusinessUrl, '_blank')}
+              className="bg-gradient-primary shadow-lg"
+              size="sm"
+            >
+              <Star className="h-4 w-4 mr-2" />
+              Rate on Google
+            </Button>
+          </div>
+        )}
       </div>
     );
   }
