@@ -100,40 +100,9 @@ export default function Menu() {
   if (menuExists) {
     return (
       <div className="min-h-screen bg-white">
-        {/* Mobile Header */}
-        {isMobile && (
-          <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-4 py-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-lg font-semibold text-gray-900">{menuName}</h1>
-                <p className="text-sm text-gray-500">Menu</p>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  onClick={handleOpenInNewTab}
-                  variant="outline"
-                  size="sm"
-                  className="flex items-center gap-1"
-                >
-                  <Eye className="h-4 w-4" />
-                  <span className="hidden sm:inline">View</span>
-                </Button>
-                <Button
-                  onClick={handleDownloadPDF}
-                  variant="outline"
-                  size="sm"
-                  className="flex items-center gap-1"
-                >
-                  <Download className="h-4 w-4" />
-                  <span className="hidden sm:inline">Download</span>
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
-
+        
         {/* PDF Viewer */}
-        <div className="relative" style={{ height: isMobile ? 'calc(100vh - 60px)' : '100vh' }}>
+        <div className="relative" style={{ height: '100vh' }}>
           {isMobile ? (
             // Mobile: Multiple fallback strategies
             <div className="w-full h-full flex flex-col">
@@ -236,20 +205,7 @@ export default function Menu() {
           )}
         </div>
 
-        {/* Google Business Link */}
-        {googleBusinessUrl && (
-          <div className="fixed bottom-4 right-4 z-20">
-            <Button
-              onClick={() => window.open(googleBusinessUrl, '_blank')}
-              className="bg-gradient-primary shadow-lg"
-              size="sm"
-            >
-              <Star className="h-4 w-4 mr-2" />
-              Rate on Google
-            </Button>
-          </div>
-        )}
-      </div>
+              </div>
     );
   }
 
