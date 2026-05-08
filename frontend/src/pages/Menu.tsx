@@ -108,38 +108,16 @@ export default function Menu() {
             <p className="text-gray-600 mb-6">Menu PDF</p>
             
             <div className="flex flex-col gap-4 w-full">
-              {/* Option 1: Open PDF in browser (primary) */}
-              <Button
-                onClick={handleOpenInNewTab}
-                className="w-full bg-gradient-primary text-white"
-                size="lg"
-              >
-                <ExternalLink className="h-5 w-5 mr-2" />
-                Open Menu PDF
-              </Button>
-              
-              {/* Option 2: Download PDF */}
-              <Button
-                onClick={handleDownloadPDF}
-                variant="outline"
-                className="w-full"
-                size="lg"
-              >
-                <Download className="h-5 w-5 mr-2" />
-                Download Menu PDF
-              </Button>
-              
-              {/* Option 3: Google Docs Viewer */}
-              <Button
-                onClick={() => window.open(`https://docs.google.com/gview?embedded=1&url=${encodeURIComponent(pdfUrl)}`, '_blank')}
-                variant="secondary"
-                className="w-full"
-                size="lg"
-              >
-                <Eye className="h-5 w-5 mr-2" />
-                View in Google Docs
-              </Button>
-            </div>
+            {/* Open PDF directly in browser */}
+            <Button
+              onClick={handleOpenInNewTab}
+              className="w-full bg-gradient-primary text-white"
+              size="lg"
+            >
+              <ExternalLink className="h-5 w-5 mr-2" />
+              Open Menu PDF
+            </Button>
+          </div>
             
             <p className="text-sm text-gray-500 mt-6">
               Choose how you'd like to view the menu. The PDF will open directly in your browser or download to your device.
