@@ -53,8 +53,8 @@ router.post(
   authenticate,
   [
     body("name").trim().notEmpty().withMessage("Business name is required"),
-    body("email").isEmail().normalizeEmail().withMessage("Valid email is required"),
-    body("phone").trim().notEmpty().withMessage("Phone is required"),
+    body("email").optional().isEmail().normalizeEmail().withMessage("Valid email is required"),
+    body("phone").optional().trim().withMessage("Phone is required"),
     body("address").trim().notEmpty().withMessage("Address is required"),
     body("googleBusinessUrl").optional().isURL().withMessage("Must be a valid URL"),
   ],
