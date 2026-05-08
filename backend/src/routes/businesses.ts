@@ -53,7 +53,7 @@ router.post(
   authenticate,
   [
     body("name").trim().notEmpty().withMessage("Business name is required"),
-    body("email").isEmail().withMessage("Valid email is required").normalizeEmail(),
+    body("email").isEmail().normalizeEmail().withMessage("Valid email is required"),
     body("phone").trim().notEmpty().withMessage("Phone is required"),
     body("address").trim().notEmpty().withMessage("Address is required"),
     body("googleBusinessUrl").optional().isURL().withMessage("Must be a valid URL"),
@@ -66,6 +66,7 @@ router.post(
       }
 
       // Check if user has active subscription
+      // Temporary workaround until Prisma client is regenerated
       const activeSubscription = await prisma.$queryRaw`
         SELECT * FROM subscriptions 
         WHERE "userId" = ${req.userId} 
@@ -107,11 +108,11 @@ router.put(
   "/:id",
   authenticate,
   [
-    body("name").optional().trim().notEmpty().withMessage("Business name cannot be empty"),
-    body("email").optional().isEmail().withMessage("Valid email is required").normalizeEmail(),
-    body("phone").optional().trim().notEmpty().withMessage("Phone cannot be empty"),
-    body("address").optional().trim().notEmpty().withMessage("Address cannot be empty"),
-    body("googleBusinessUrl").optional().isURL().withMessage("Must be a valid URL"),
+    body("name").optional().trim().notEmpty(),
+    body("email").optional().isEmail().normalizeEmail(),
+    body("phone").optional().trim().notEmpty(),
+    body("address").optional().trim().notEmpty(),
+    body("googleBusinessUrl").optional().isURL(),
   ],
   async (req: AuthRequest, res: Response) => {
     try {
@@ -185,7 +186,7 @@ router.get("/public/:id", async (req: AuthRequest, res: Response) => {
             createdAt: true,
           },
           orderBy: { createdAt: 'desc' },
-          take: 1,
+          take: 1, // Only get the most recent menu
         }
       }
     });
@@ -220,6 +221,7 @@ router.get("/menu/:publicId/pdf", async (req: AuthRequest, res: Response) => {
 
     console.log('Serving PDF from database for menu:', menu.name);
 
+    // Send PDF buffer directly
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${menu.name}.pdf"`);
     res.setHeader('Content-Length', menu.pdf.length.toString());
@@ -279,6 +281,7 @@ router.get("/:id/menus", authenticate, async (req: AuthRequest, res: Response) =
       return res.status(404).json({ error: "Business not found" });
     }
 
+    // Return menus without the pdf binary data
     const menusWithoutPdf = business.menus.map(({ pdf, ...rest }) => rest);
     res.json({ menus: menusWithoutPdf });
   } catch (error) {
@@ -304,6 +307,7 @@ router.post("/:id/menus", authenticate, upload.single('menu'), async (req: AuthR
       return res.status(400).json({ error: "No file uploaded" });
     }
 
+    // Generate a unique publicId for the menu
     const generatePublicId = () => {
       const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
       let result = '';
@@ -315,6 +319,7 @@ router.post("/:id/menus", authenticate, upload.single('menu'), async (req: AuthR
 
     const menuPublicId = generatePublicId();
 
+    // Store PDF directly in database as binary
     const menu = await prisma.menu.create({
       data: {
         businessId: id,
