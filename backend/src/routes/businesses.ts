@@ -53,10 +53,10 @@ router.post(
   authenticate,
   [
     body("name").trim().notEmpty().withMessage("Business name is required"),
-    body("email").optional({ checkFalsy: true }).isEmail().normalizeEmail().withMessage("Valid email is required"),
-    body("phone").optional({ checkFalsy: true }).trim().notEmpty().withMessage("Phone is required"),
+    body("email").isEmail().normalizeEmail().withMessage("Valid email is required"),
+    body("phone").trim().notEmpty().withMessage("Phone is required"),
     body("address").trim().notEmpty().withMessage("Address is required"),
-    body("googleBusinessUrl").optional({ checkFalsy: true }).isURL().withMessage("Must be a valid URL"),
+    body("googleBusinessUrl").optional().isURL().withMessage("Must be a valid URL"),
   ],
   async (req: AuthRequest, res: Response) => {
     try {
@@ -90,10 +90,10 @@ router.post(
         data: {
           ownerId: req.userId!,
           name,
-          email: email || null,
-          phone: phone || null,
+          email,
+          phone,
           address,
-          googleBusinessUrl: googleBusinessUrl || null,
+          googleBusinessUrl,
         },
       });
 

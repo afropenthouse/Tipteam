@@ -235,19 +235,19 @@ export default function NewBusiness() {
 
       <form onSubmit={onSubmit} className="mt-6 space-y-5 rounded-2xl border bg-card p-6 shadow-card">
         <div className="space-y-2">
-          <Label>Business name *</Label>
+          <Label>Business name</Label>
           <Input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
         </div>
         <div className="space-y-2">
-          <Label>Business email (optional)</Label>
-          <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+          <Label>Business email</Label>
+          <Input type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
         </div>
         <div className="space-y-2">
-          <Label>Business phone (optional)</Label>
-          <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+          <Label>Business phone</Label>
+          <Input required value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
         </div>
         <div className="space-y-2">
-          <Label>Business address *</Label>
+          <Label>Business address</Label>
           <Textarea required value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
         </div>
         <div className="space-y-2">
