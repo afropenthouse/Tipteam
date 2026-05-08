@@ -159,7 +159,7 @@ export default function BusinessDetail() {
             <div className="relative w-full max-w-[200px]">
               <div className="absolute -top-5 sm:-top-6 left-0 right-0 flex justify-center z-10 px-2">
                 <span className="inline-block text-black text-xs sm:text-sm font-bold px-2 sm:px-4 py-1 sm:py-2 whitespace-nowrap text-center bg-white/90 backdrop-blur-sm rounded-lg shadow-sm">
-                  Scan to Give feedback & Complaint
+                  Scan to Give Feedback & Complaints
                 </span>
               </div>
               <div className="flex justify-center">
