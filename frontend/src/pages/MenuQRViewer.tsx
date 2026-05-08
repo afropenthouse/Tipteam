@@ -111,6 +111,7 @@ export default function MenuQRViewer() {
                     className="w-full h-full absolute inset-0"
                     title={menuName}
                     style={{ display: 'none' }}
+                    sandbox="allow-same-origin allow-scripts allow-popups allow-downloads"
                     onLoad={(e) => {
                       const iframe = e.target as HTMLIFrameElement;
                       // Check if iframe loaded successfully
@@ -199,6 +200,7 @@ export default function MenuQRViewer() {
                 src={pdfUrl}
                 className="w-full h-full"
                 title={menuName}
+                sandbox="allow-same-origin allow-scripts allow-popups allow-downloads"
               />
             )}
           </div>
