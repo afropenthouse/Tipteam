@@ -199,6 +199,7 @@ export default function MenuQRViewer() {
                 src={pdfUrl}
                 className="w-full h-full"
                 title={menuName}
+                sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-downloads"
               />
             )}
           </div>

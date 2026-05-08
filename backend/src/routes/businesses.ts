@@ -90,10 +90,10 @@ router.post(
         data: {
           ownerId: req.userId!,
           name,
-          email,
-          phone,
+          email: email || null,
+          phone: phone || null,
           address,
-          googleBusinessUrl,
+          googleBusinessUrl: googleBusinessUrl || null,
         },
       });
 
