@@ -69,26 +69,13 @@ export default function Menu() {
   return (
     <div className="min-h-screen bg-white">
       {/* PDF Viewer */}
-      <div className="relative" style={{ height: "100dvh" }}>
-        <object
-          data={pdfUrl}
-          type="application/pdf"
-          className="w-full h-full border-0 block"
+      <div className="relative" style={{ height: '100vh' }}>
+        {/* Self-host PDF.js to completely bypass native renderer issues */}
+        <iframe 
+          src={`/pdfjs/web/viewer.html?file=${encodeURIComponent(pdfUrl)}`}
+          className="w-full h-full border-0"
           title={menuName}
-        >
-          {/* Fallback when PDF can't be rendered */}
-          <div className="flex flex-col items-center justify-center h-full p-6 text-center">
-            <FileText className="h-12 w-12 text-gray-400 mb-4" />
-            <p className="text-gray-700 mb-4 font-medium">
-              Unable to display the menu in the browser.
-            </p>
-            <Button asChild>
-              <a href={pdfUrl} target="_blank" rel="noopener noreferrer">
-                Open PDF
-              </a>
-            </Button>
-          </div>
-        </object>
+        />
       </div>
     </div>
   );
