@@ -1,30 +1,16 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { Loader2, FileText, Download, ExternalLink, Star, Eye } from "lucide-react";
+import { Loader2, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function Menu() {
   const { publicId } = useParams<{ publicId: string }>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [menuExists, setMenuExists] = useState<boolean>(false);
-  const [menuName, setMenuName] = useState<string>("Menu");
+  const [menuExists, setMenuExists] = useState(false);
+  const [menuName, setMenuName] = useState("Menu");
   const [googleBusinessUrl, setGoogleBusinessUrl] = useState<string | null>(null);
-  const [isMobile, setIsMobile] = useState(false);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
-
-  useEffect(() => {
-    // Detect mobile device
-    const checkMobile = () => {
-      const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
-      setIsMobile(/android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent));
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
 
   useEffect(() => {
     if (!publicId) {
@@ -33,22 +19,21 @@ export default function Menu() {
       return;
     }
 
-     const fetchMenu = async () => {
+    const fetchMenu = async () => {
       try {
-        let response = await fetch(`${import.meta.env.VITE_API_URL}/businesses/menu/${publicId}`);
-        if (!response.ok) {
-          throw new Error("Menu not found");
-        }
+        const response = await fetch(
+          `${import.meta.env.VITE_API_URL}/businesses/menu/${publicId}`
+        );
+        if (!response.ok) throw new Error("Menu not found");
+
         const data = await response.json();
-        
-        const pdfUrl = `${import.meta.env.VITE_API_URL}/businesses/menu/${publicId}/pdf`;
-        setPdfUrl(pdfUrl);
+        setPdfUrl(`${import.meta.env.VITE_API_URL}/businesses/menu/${publicId}/pdf`);
         setMenuName(data.menu.name || "Menu");
         setMenuExists(true);
         setGoogleBusinessUrl(data.menu.business?.googleBusinessUrl || null);
-        setLoading(false);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load menu");
+      } finally {
         setLoading(false);
       }
     };
@@ -63,7 +48,7 @@ export default function Menu() {
           <FileText className="h-16 w-16 mx-auto text-gray-400 mb-4" />
           <h1 className="text-2xl font-bold mb-2 text-gray-800">Menu Not Found</h1>
           <p className="text-gray-600">{error}</p>
-                  </div>
+        </div>
       </div>
     );
   }
@@ -79,51 +64,32 @@ export default function Menu() {
     );
   }
 
-  const handleDownloadPDF = () => {
-    if (pdfUrl) {
-      const link = document.createElement('a');
-      link.href = pdfUrl;
-      link.download = `${menuName}.pdf`;
-      link.target = '_blank';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
-  };
+  if (!menuExists || !pdfUrl) return null;
 
-  const handleOpenInNewTab = () => {
-    if (pdfUrl) {
-      window.open(pdfUrl, '_blank');
-    }
-  };
-
-  if (menuExists) {
-    return (
-      <div className="min-h-screen bg-white">
-        
-        {/* PDF Viewer */}
-        <div className="relative" style={{ height: '100vh' }}>
-          // Use same iframe approach for both mobile and desktop with mobile-specific handling
-          <iframe
-            src={pdfUrl}
-            className="w-full h-full border-0"
-            title={menuName}
-            allowFullScreen
-            loading="lazy"
-            onLoad={() => console.log("✅ PDF iframe loaded successfully")}
-            onError={() => {
-              console.error("❌ PDF iframe failed to load, trying fallback");
-              // Fallback for mobile if iframe fails
-              if (isMobile) {
-                window.open(pdfUrl, '_blank');
-              }
-            }}
-          />
-        </div>
-
-              </div>
-    );
-  }
-
-  return null;
+  return (
+    <div className="min-h-screen bg-white">
+      {/* PDF Viewer */}
+      <div className="relative" style={{ height: "100dvh" }}>
+        <object
+          data={pdfUrl}
+          type="application/pdf"
+          className="w-full h-full border-0 block"
+          title={menuName}
+        >
+          {/* Fallback when PDF can't be rendered */}
+          <div className="flex flex-col items-center justify-center h-full p-6 text-center">
+            <FileText className="h-12 w-12 text-gray-400 mb-4" />
+            <p className="text-gray-700 mb-4 font-medium">
+              Unable to display the menu in the browser.
+            </p>
+            <Button asChild>
+              <a href={pdfUrl} target="_blank" rel="noopener noreferrer">
+                Open PDF
+              </a>
+            </Button>
+          </div>
+        </object>
+      </div>
+    </div>
+  );
 }
