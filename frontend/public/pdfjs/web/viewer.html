@@ -1,129 +1,70 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5">
     <title>PDF Viewer</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
     <style>
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: Arial, sans-serif;
-            background: #f0f0f0;
-        }
-        #canvas-container {
-            width: 100%;
-            height: 100vh;
-            overflow: auto;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background: #fff;
-        }
-        #pdf-canvas {
-            max-width: 100%;
-            max-height: 100%;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        }
-        .loading {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            font-size: 18px;
-            color: #666;
-        }
-        .error {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            text-align: center;
-            padding: 20px;
-        }
-        .error button {
-            margin-top: 20px;
-            padding: 10px 20px;
-            background: #007bff;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 16px;
-        }
-        .error button:hover {
-            background: #0056b3;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; background: #f0f0f0; }
+        #loading { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; background: #f0f0f0; z-index: 1000; }
+        #loading.hidden { display: none; }
+        .spinner { width: 40px; height: 40px; border: 3px solid #e0e0e0; border-top-color: #007bff; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        #pdf-container { width: 100%; padding: 10px; background: #f0f0f0; }
+        .page-container { margin: 0 auto 15px; background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.15); position: relative; width: fit-content; max-width: 100%; }
+        canvas { display: block; width: 100%; height: auto; }
+        .page-number { position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.6); color: white; padding: 3px 6px; border-radius: 3px; font-size: 11px; }
+        #error { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; justify-content: center; align-items: center; background: #f0f0f0; text-align: center; padding: 20px; z-index: 2000; }
+        #error.visible { display: flex; }
+        #error button { margin-top: 12px; padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 15px; }
+        @media (max-width: 768px) { #pdf-container { padding: 5px; } .page-container { margin-bottom: 10px; } }
     </style>
 </head>
 <body>
-    <div id="loading" class="loading">Loading PDF...</div>
-    <div id="error" class="error" style="display: none;">
-        <h2>Failed to load PDF</h2>
-        <p>There was an error loading the PDF file.</p>
-        <button onclick="window.open(fileUrl, '_blank')">Open PDF in new tab</button>
-    </div>
-    <div id="canvas-container" style="display: none;">
-        <canvas id="pdf-canvas"></canvas>
-    </div>
-
+    <div id="loading"><div class="spinner"></div></div>
+    <div id="error"><div><h2>Failed to load PDF</h2><p id="error-message"></p><button onclick="window.open(fileUrl, '_blank')">Open PDF in new tab</button></div></div>
+    <div id="pdf-container"></div>
     <script>
-        // Get file URL from query parameters
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
         const urlParams = new URLSearchParams(window.location.search);
         const fileUrl = urlParams.get('file');
-        
-        if (!fileUrl) {
-            showError('No file URL provided');
-            return;
+        if (!fileUrl) { showError('No file URL provided'); } else { window.fileUrl = fileUrl; loadPDF(fileUrl); }
+
+        async function loadPDF(url) {
+            try {
+                const pdf = await pdfjsLib.getDocument(url).promise;
+                document.getElementById('loading').classList.add('hidden');
+                const container = document.getElementById('pdf-container');
+                const screenWidth = window.innerWidth - 20;
+                for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                    const page = await pdf.getPage(pageNum);
+                    const baseViewport = page.getViewport({ scale: 1 });
+                    const scale = screenWidth / baseViewport.width;
+                    const viewport = page.getViewport({ scale });
+                    const pageDiv = document.createElement('div');
+                    pageDiv.className = 'page-container';
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+                    await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+                    const pn = document.createElement('div');
+                    pn.className = 'page-number';
+                    pn.textContent = pageNum + ' / ' + pdf.numPages;
+                    pageDiv.appendChild(canvas);
+                    pageDiv.appendChild(pn);
+                    container.appendChild(pageDiv);
+                }
+            } catch (e) { showError('Failed to load PDF: ' + e.message); }
         }
 
-        // Store for error handling
-        window.fileUrl = fileUrl;
-
-        // Load PDF
-        pdfjsLib.getDocument(fileUrl).promise.then(function(pdf) {
-            document.getElementById('loading').style.display = 'none';
-            document.getElementById('canvas-container').style.display = 'flex';
-            
-            // Render first page
-            pdf.getPage(1).then(function(page) {
-                const canvas = document.getElementById('pdf-canvas');
-                const context = canvas.getContext('2d');
-                
-                // Calculate scale to fit screen
-                const viewport = page.getViewport({ scale: 1.5 });
-                canvas.height = viewport.height;
-                canvas.width = viewport.width;
-                
-                // Render PDF page
-                page.render({
-                    canvasContext: context,
-                    viewport: viewport
-                }).promise.then(function() {
-                    console.log('PDF rendered successfully');
-                }).catch(function(error) {
-                    console.error('PDF render error:', error);
-                    showError('Failed to render PDF page');
-                });
-            }).catch(function(error) {
-                console.error('PDF page error:', error);
-                showError('Failed to load PDF page');
-            });
-        }).catch(function(error) {
-            console.error('PDF load error:', error);
-            showError('Failed to load PDF: ' + error.message);
-        });
-
-        function showError(message) {
-            document.getElementById('loading').style.display = 'none';
-            document.getElementById('error').style.display = 'flex';
-            const errorText = document.querySelector('#error p');
-            if (errorText) {
-                errorText.textContent = message;
-            }
+        function showError(msg) {
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('error').classList.add('visible');
+            document.getElementById('error-message').textContent = msg;
         }
     </script>
 </body>

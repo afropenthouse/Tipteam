@@ -68,15 +68,12 @@ export default function Menu() {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* PDF Viewer */}
-      <div className="relative" style={{ height: '100vh' }}>
-        {/* Self-host PDF.js to completely bypass native renderer issues */}
-        <iframe 
-          src={`/pdfjs/web/viewer.html?file=${encodeURIComponent(pdfUrl)}`}
-          className="w-full h-full border-0"
-          title={menuName}
-        />
-      </div>
+      <iframe 
+        src={`/pdfjs/web/viewer.html?file=${encodeURIComponent(pdfUrl)}`}
+        className="w-full h-screen border-0 block"
+        style={{ height: '100dvh' }}
+        title={menuName}
+      />
     </div>
   );
 }
