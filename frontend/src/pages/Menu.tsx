@@ -103,61 +103,14 @@ export default function Menu() {
         
         {/* PDF Viewer */}
         <div className="relative" style={{ height: '100vh' }}>
-          {isMobile ? (
-            // Mobile: Simple fallback UI
-            <div className="w-full h-full flex flex-col items-center justify-center p-8 bg-white">
-              <FileText className="h-16 w-16 text-gray-400 mb-4" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">{menuName}</h3>
-              <p className="text-gray-600 mb-6">View the menu PDF using one of these options:</p>
-              
-              <div className="flex flex-col gap-3 w-full max-w-sm">
-                {/* Option 1: Open in new tab */}
-                <Button
-                  onClick={handleOpenInNewTab}
-                  className="w-full bg-gradient-primary text-white"
-                  size="lg"
-                >
-                  <ExternalLink className="h-5 w-5 mr-2" />
-                  Open Menu in Browser
-                </Button>
-                
-                {/* Option 2: Download */}
-                <Button
-                  onClick={handleDownloadPDF}
-                  variant="outline"
-                  className="w-full"
-                  size="lg"
-                >
-                  <Download className="h-5 w-5 mr-2" />
-                  Download Menu PDF
-                </Button>
-                
-                {/* Option 3: Google Docs Viewer (works well on mobile) */}
-                <Button
-                  onClick={() => window.open(`https://docs.google.com/gview?embedded=1&url=${encodeURIComponent(pdfUrl || '')}`, '_blank')}
-                  variant="secondary"
-                  className="w-full"
-                  size="lg"
-                >
-                  <Eye className="h-5 w-5 mr-2" />
-                  View in Google Docs
-                </Button>
-              </div>
-              
-              <p className="text-xs text-gray-500 mt-6 max-w-xs">
-                For best viewing experience, use the "Open Menu in Browser" option or download the PDF to your device.
-              </p>
-            </div>
-          ) : (
-            // Desktop: Use iframe for better experience
-            <iframe
-              src={`${pdfUrl}#view=FitV&toolbar=1&navpanes=1`}
-              className="w-full h-full border-0"
-              title={menuName}
-              allowFullScreen
-              loading="lazy"
-            />
-          )}
+          // Use same iframe approach for both mobile and desktop
+          <iframe
+            src={`${pdfUrl}#view=FitV&toolbar=1&navpanes=1`}
+            className="w-full h-full border-0"
+            title={menuName}
+            allowFullScreen
+            loading="lazy"
+          />
         </div>
 
               </div>

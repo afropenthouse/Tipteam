@@ -251,8 +251,8 @@ export default function NewBusiness() {
           <Input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
         </div>
         <div className="space-y-2">
-          <Label>Business email</Label>
-          <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="Optional" />
+          <Label>Business email <span className="text-red-500">*</span></Label>
+          <Input type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
         </div>
         <div className="space-y-2">
           <Label>Business phone <span className="text-red-500">*</span></Label>
