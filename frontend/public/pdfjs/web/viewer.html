@@ -39,6 +39,7 @@
                 document.getElementById('loading').classList.add('hidden');
                 const container = document.getElementById('pdf-container');
                 const screenWidth = window.innerWidth - 20;
+                const pixelRatio = window.devicePixelRatio || 1;
                 for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
                     const page = await pdf.getPage(pageNum);
                     const baseViewport = page.getViewport({ scale: 1 });
@@ -48,8 +49,11 @@
                     pageDiv.className = 'page-container';
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
-                    canvas.height = viewport.height;
-                    canvas.width = viewport.width;
+                    canvas.width = viewport.width * pixelRatio;
+                    canvas.height = viewport.height * pixelRatio;
+                    canvas.style.width = viewport.width + 'px';
+                    canvas.style.height = viewport.height + 'px';
+                    ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
                     await page.render({ canvasContext: ctx, viewport: viewport }).promise;
                     const pn = document.createElement('div');
                     pn.className = 'page-number';
