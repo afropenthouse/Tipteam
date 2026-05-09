@@ -103,8 +103,20 @@ export default function NewBusiness() {
     e.preventDefault();
     if (!user) return;
     setLoading(true);
+    
+    // Clean up form data - remove empty optional fields
+    const cleanedForm = {
+      name: form.name,
+      email: form.email || undefined,
+      phone: form.phone,
+      address: form.address,
+      googleBusinessUrl: form.googleBusinessUrl || undefined,
+    };
+    
+    console.log("Submitting cleaned form data:", cleanedForm);
+    
     try {
-      const biz = await createBusiness(form);
+      const biz = await createBusiness(cleanedForm);
       toast({ title: "Business created", description: biz.name });
       navigate(`/dashboard/businesses/${biz.id}`);
     } catch (err) {
@@ -235,19 +247,19 @@ export default function NewBusiness() {
 
       <form onSubmit={onSubmit} className="mt-6 space-y-5 rounded-2xl border bg-card p-6 shadow-card">
         <div className="space-y-2">
-          <Label>Business name</Label>
+          <Label>Business name <span className="text-red-500">*</span></Label>
           <Input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
         </div>
         <div className="space-y-2">
           <Label>Business email</Label>
-          <Input type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+          <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="Optional" />
         </div>
         <div className="space-y-2">
-          <Label>Business phone</Label>
+          <Label>Business phone <span className="text-red-500">*</span></Label>
           <Input required value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
         </div>
         <div className="space-y-2">
-          <Label>Business address</Label>
+          <Label>Business address <span className="text-red-500">*</span></Label>
           <Textarea required value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
         </div>
         <div className="space-y-2">

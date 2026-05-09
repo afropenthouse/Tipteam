@@ -72,6 +72,51 @@ router.get("/balance/:businessId", authenticate, async (req: AuthRequest, res: R
   }
 });
 
+// Get wallet balance for a business (route that frontend expects)
+router.get("/business/:businessId", authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const businessId = req.params.businessId as string;
+    const userId = req.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const business = await prisma.business.findFirst({
+      where: { id: businessId, ownerId: userId },
+    });
+
+    if (!business) {
+      return res.status(404).json({ error: "Business not found" });
+    }
+
+    const totalEarned = await prisma.feedback.aggregate({
+      where: { businessId },
+      _sum: { tipAmount: true },
+    });
+
+    const totalWithdrawn = await prisma.withdrawal.aggregate({
+      where: { businessId },
+      _sum: { amount: true },
+    });
+
+    const totalEarnedAmount = totalEarned._sum?.tipAmount ?? 0;
+    const totalWithdrawnAmount = totalWithdrawn._sum?.amount ?? 0;
+    const availableBalance = totalEarnedAmount - totalWithdrawnAmount;
+
+    res.json({
+      wallet: {
+        earned: totalEarnedAmount,
+        withdrawn: totalWithdrawnAmount,
+        available: availableBalance,
+      },
+    });
+  } catch (error: any) {
+    console.error("Wallet balance error:", error);
+    res.status(500).json({ error: error?.message || "Failed to get wallet balance" });
+  }
+});
+
 // Get withdrawal history
 router.get("/history/:businessId", authenticate, async (req: AuthRequest, res: Response) => {
   try {

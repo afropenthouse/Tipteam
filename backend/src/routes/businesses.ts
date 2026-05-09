@@ -53,15 +53,22 @@ router.post(
   authenticate,
   [
     body("name").trim().notEmpty().withMessage("Business name is required"),
-    body("email").isEmail().normalizeEmail().withMessage("Valid email is required"),
+    body("email").optional({ checkFalsy: true }).isEmail().normalizeEmail().withMessage("Valid email is required"),
     body("phone").trim().notEmpty().withMessage("Phone is required"),
     body("address").trim().notEmpty().withMessage("Address is required"),
-    body("googleBusinessUrl").optional().isURL().withMessage("Must be a valid URL"),
+    body("googleBusinessUrl").optional({ checkFalsy: true }).isURL().withMessage("Must be a valid URL"),
   ],
   async (req: AuthRequest, res: Response) => {
     try {
+      console.log("📝 Business creation request received:", {
+        userId: req.userId,
+        body: req.body,
+        headers: req.headers
+      });
+
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
+        console.log("❌ Validation errors:", errors.array());
         return res.status(400).json({ errors: errors.array() });
       }
 
@@ -86,6 +93,15 @@ router.post(
 
       const { name, email, phone, address, googleBusinessUrl } = req.body;
 
+      console.log("✅ Validation passed, creating business with data:", {
+        ownerId: req.userId,
+        name,
+        email,
+        phone,
+        address,
+        googleBusinessUrl
+      });
+
       const business = await prisma.business.create({
         data: {
           ownerId: req.userId!,
@@ -97,9 +113,20 @@ router.post(
         },
       });
 
+      console.log("✅ Business created successfully:", business);
       res.status(201).json({ business });
     } catch (error) {
-      res.status(500).json({ error: "Failed to create business" });
+      console.error("❌ Business creation failed:", {
+        error: error,
+        message: error instanceof Error ? error.message : "Unknown error",
+        stack: error instanceof Error ? error.stack : undefined,
+        userId: req.userId,
+        body: req.body
+      });
+      res.status(500).json({ 
+        error: "Failed to create business",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
     }
   }
 );
