@@ -103,13 +103,21 @@ export default function Menu() {
         
         {/* PDF Viewer */}
         <div className="relative" style={{ height: '100vh' }}>
-          // Use same iframe approach for both mobile and desktop
+          // Use same iframe approach for both mobile and desktop with mobile-specific handling
           <iframe
-            src={`${pdfUrl}#view=FitV&toolbar=1&navpanes=1`}
+            src={pdfUrl}
             className="w-full h-full border-0"
             title={menuName}
             allowFullScreen
             loading="lazy"
+            onLoad={() => console.log("✅ PDF iframe loaded successfully")}
+            onError={() => {
+              console.error("❌ PDF iframe failed to load, trying fallback");
+              // Fallback for mobile if iframe fails
+              if (isMobile) {
+                window.open(pdfUrl, '_blank');
+              }
+            }}
           />
         </div>
 
