@@ -109,11 +109,12 @@ export default function Menu() {
               <div className="flex-1 relative">
                 {/* Strategy 1: Try iframe first (works on some mobile browsers) */}
                 <iframe
-                  src={pdfUrl}
-                  className="w-full h-full absolute inset-0"
+                  src={`${pdfUrl}#view=FitV&toolbar=1&navpanes=1`}
+                  className="w-full h-full absolute inset-0 border-0"
                   title={menuName}
                   style={{ display: 'none' }}
-                  sandbox="allow-same-origin allow-scripts allow-popups allow-downloads"
+                  allowFullScreen
+                  loading="lazy"
                   onLoad={(e) => {
                     const iframe = e.target as HTMLIFrameElement;
                     // Check if iframe loaded successfully
@@ -136,7 +137,7 @@ export default function Menu() {
                 
                 {/* Strategy 2: Try embed tag */}
                 <object
-                  data={pdfUrl}
+                  data={`${pdfUrl}#view=FitV&toolbar=1&navpanes=1`}
                   type="application/pdf"
                   className="w-full h-full absolute inset-0"
                   title={menuName}
@@ -199,10 +200,11 @@ export default function Menu() {
           ) : (
             // Desktop: Use iframe for better experience
             <iframe
-              src={pdfUrl}
-              className="w-full h-full"
+              src={`${pdfUrl}#view=FitV&toolbar=1&navpanes=1`}
+              className="w-full h-full border-0"
               title={menuName}
-              sandbox="allow-same-origin allow-scripts allow-popups allow-downloads"
+              allowFullScreen
+              loading="lazy"
             />
           )}
         </div>

@@ -221,10 +221,12 @@ router.get("/menu/:publicId/pdf", async (req: AuthRequest, res: Response) => {
 
     console.log('Serving PDF from database for menu:', menu.name);
 
-    // Send PDF buffer directly
+    // Send PDF buffer directly with proper headers for inline display
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${menu.name}.pdf"`);
     res.setHeader('Content-Length', menu.pdf.length.toString());
+    res.setHeader('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
+    res.setHeader('X-Content-Type-Options', 'nosniff');
     res.send(Buffer.from(menu.pdf));
   } catch (error) {
     console.error('PDF serve error:', error);
