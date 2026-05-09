@@ -104,98 +104,49 @@ export default function Menu() {
         {/* PDF Viewer */}
         <div className="relative" style={{ height: '100vh' }}>
           {isMobile ? (
-            // Mobile: Multiple fallback strategies
-            <div className="w-full h-full flex flex-col">
-              <div className="flex-1 relative">
-                {/* Strategy 1: Try iframe first (works on some mobile browsers) */}
-                <iframe
-                  src={`${pdfUrl}#view=FitV&toolbar=1&navpanes=1`}
-                  className="w-full h-full absolute inset-0 border-0"
-                  title={menuName}
-                  style={{ display: 'none' }}
-                  allowFullScreen
-                  loading="lazy"
-                  onLoad={(e) => {
-                    const iframe = e.target as HTMLIFrameElement;
-                    // Check if iframe loaded successfully
-                    try {
-                      const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
-                      if (iframeDoc && iframeDoc.body.innerHTML.includes('pdf')) {
-                        iframe.style.display = 'block';
-                        document.getElementById('fallback-ui')!.style.display = 'none';
-                      }
-                    } catch (error) {
-                      // Cross-origin error, show fallback
-                      iframe.style.display = 'none';
-                      document.getElementById('fallback-ui')!.style.display = 'flex';
-                    }
-                  }}
-                  onError={() => {
-                    document.getElementById('fallback-ui')!.style.display = 'flex';
-                  }}
-                />
-                
-                {/* Strategy 2: Try embed tag */}
-                <object
-                  data={`${pdfUrl}#view=FitV&toolbar=1&navpanes=1`}
-                  type="application/pdf"
-                  className="w-full h-full absolute inset-0"
-                  title={menuName}
-                  style={{ display: 'none' }}
-                  onLoad={() => {
-                    document.querySelector('object')!.style.display = 'block';
-                    document.getElementById('fallback-ui')!.style.display = 'none';
-                  }}
-                  onError={() => {
-                    document.getElementById('fallback-ui')!.style.display = 'flex';
-                  }}
+            // Mobile: Simple fallback UI
+            <div className="w-full h-full flex flex-col items-center justify-center p-8 bg-white">
+              <FileText className="h-16 w-16 text-gray-400 mb-4" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">{menuName}</h3>
+              <p className="text-gray-600 mb-6">View the menu PDF using one of these options:</p>
+              
+              <div className="flex flex-col gap-3 w-full max-w-sm">
+                {/* Option 1: Open in new tab */}
+                <Button
+                  onClick={handleOpenInNewTab}
+                  className="w-full bg-gradient-primary text-white"
+                  size="lg"
                 >
-                  {/* Strategy 3: Fallback UI with multiple options */}
-                  <div id="fallback-ui" className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center bg-white">
-                    <FileText className="h-16 w-16 text-gray-400 mb-4" />
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">{menuName}</h3>
-                    <p className="text-gray-600 mb-6">View the menu PDF using one of these options:</p>
-                    
-                    <div className="flex flex-col gap-3 w-full max-w-sm">
-                      {/* Option 1: Open in new tab */}
-                      <Button
-                        onClick={handleOpenInNewTab}
-                        className="w-full bg-gradient-primary text-white"
-                        size="lg"
-                      >
-                        <ExternalLink className="h-5 w-5 mr-2" />
-                        Open Menu in Browser
-                      </Button>
-                      
-                      {/* Option 2: Download */}
-                      <Button
-                        onClick={handleDownloadPDF}
-                        variant="outline"
-                        className="w-full"
-                        size="lg"
-                      >
-                        <Download className="h-5 w-5 mr-2" />
-                        Download Menu PDF
-                      </Button>
-                      
-                      {/* Option 3: Google Docs Viewer (works well on mobile) */}
-                      <Button
-                        onClick={() => window.open(`https://docs.google.com/gview?embedded=1&url=${encodeURIComponent(pdfUrl)}`, '_blank')}
-                        variant="secondary"
-                        className="w-full"
-                        size="lg"
-                      >
-                        <Eye className="h-5 w-5 mr-2" />
-                        View in Google Docs
-                      </Button>
-                    </div>
-                    
-                    <p className="text-xs text-gray-500 mt-6 max-w-xs">
-                      For best viewing experience, use the "Open Menu in Browser" option or download the PDF to your device.
-                    </p>
-                  </div>
-                </object>
+                  <ExternalLink className="h-5 w-5 mr-2" />
+                  Open Menu in Browser
+                </Button>
+                
+                {/* Option 2: Download */}
+                <Button
+                  onClick={handleDownloadPDF}
+                  variant="outline"
+                  className="w-full"
+                  size="lg"
+                >
+                  <Download className="h-5 w-5 mr-2" />
+                  Download Menu PDF
+                </Button>
+                
+                {/* Option 3: Google Docs Viewer (works well on mobile) */}
+                <Button
+                  onClick={() => window.open(`https://docs.google.com/gview?embedded=1&url=${encodeURIComponent(pdfUrl || '')}`, '_blank')}
+                  variant="secondary"
+                  className="w-full"
+                  size="lg"
+                >
+                  <Eye className="h-5 w-5 mr-2" />
+                  View in Google Docs
+                </Button>
               </div>
+              
+              <p className="text-xs text-gray-500 mt-6 max-w-xs">
+                For best viewing experience, use the "Open Menu in Browser" option or download the PDF to your device.
+              </p>
             </div>
           ) : (
             // Desktop: Use iframe for better experience

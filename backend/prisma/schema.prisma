@@ -41,7 +41,7 @@ model Business {
   id              String       @id @default(uuid())
   ownerId         String
   name            String
-  email           String
+  email           String?
   phone           String
   address         String
   googleBusinessUrl String?

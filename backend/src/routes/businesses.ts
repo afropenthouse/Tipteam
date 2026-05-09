@@ -96,20 +96,20 @@ router.post(
       console.log("✅ Validation passed, creating business with data:", {
         ownerId: req.userId,
         name,
-        email,
+        email: email || undefined,
         phone,
         address,
-        googleBusinessUrl
+        googleBusinessUrl: googleBusinessUrl || undefined,
       });
 
       const business = await prisma.business.create({
         data: {
           ownerId: req.userId!,
           name,
-          email,
+          email: email || null,
           phone,
           address,
-          googleBusinessUrl,
+          googleBusinessUrl: googleBusinessUrl || null,
         },
       });
 
