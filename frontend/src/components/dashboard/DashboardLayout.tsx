@@ -6,7 +6,7 @@ import { useCurrentUser } from "@/lib/store";
 export default function DashboardLayout() {
   const user = useCurrentUser();
   if (!user) return <Navigate to="/login" replace />;
-
+// guyg
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
