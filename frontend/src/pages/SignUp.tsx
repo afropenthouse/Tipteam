@@ -37,18 +37,32 @@ export default function SignUp() {
         </Link>
         <div>
           <h2 className="text-3xl font-bold leading-tight">
-            "Our team made <span className="text-primary-glow">3x more</span> in tips the first week."
+            "Our customer satisfaction increased by <span className="text-primary-glow">200%</span> using feedback."
           </h2>
           <p className="mt-3 text-sm text-primary-foreground/60">— Restaurant owner, Lagos</p>
         </div>
-        <div className="text-xs text-primary-foreground/50">© Tracla</div>
+        <div className="space-y-4">
+          <div className="flex items-center space-x-3">
+            <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+            <span className="text-sm">Collect customer feedback instantly</span>
+          </div>
+          <div className="flex items-center space-x-3">
+            <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+            <span className="text-sm">Keep customers happy with better service</span>
+          </div>
+          <div className="flex items-center space-x-3">
+            <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
+            <span className="text-sm">Receive valuable suggestions for improvement</span>
+          </div>
+        </div>
+        <div className="text-xs text-primary-foreground/50"> Tracla - Customer Satisfaction Platform</div>
       </div>
 
       <div className="flex items-center justify-center p-6 md:p-12">
         <form onSubmit={onSubmit} className="w-full max-w-sm space-y-5">
           <div>
             <h1 className="text-2xl font-bold">Create your account</h1>
-            <p className="mt-1 text-sm text-muted-foreground">It takes less than 60 seconds.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Start collecting customer feedback and keeping them happy</p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="fullName">Full name</Label>
