@@ -1,10 +1,14 @@
 import { useState, useEffect, useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
 import { QRCodeCanvas } from "qrcode.react";
-import { Copy, Download, MapPin, Mail, Phone, Star, Upload, FileText, X } from "lucide-react";
+import { Copy, Download, MapPin, Mail, Phone, Star, Upload, FileText, X, Edit } from "lucide-react";
 import QRCode from "qrcode";
 import { Button } from "@/components/ui/button";
-import { getBusiness, listFeedback, walletBalance } from "@/lib/store";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { getBusiness, listFeedback, walletBalance, updateBusiness } from "@/lib/store";
 import { toast } from "@/hooks/use-toast";
 import type { Business, Feedback } from "@/lib/api";
 
@@ -18,6 +22,15 @@ export default function BusinessDetail() {
   const [loading, setLoading] = useState(true);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [qrSize, setQrSize] = useState(200);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    address: "",
+    googleBusinessUrl: ""
+  });
 
   useEffect(() => {
     if (!id) return;
@@ -32,6 +45,47 @@ export default function BusinessDetail() {
 
     walletBalance(id).then(setWallet).catch(console.error);
   }, [id]);
+
+  const handleEditClick = () => {
+    if (business) {
+      setEditForm({
+        name: business.name,
+        email: business.email,
+        phone: business.phone,
+        address: business.address,
+        googleBusinessUrl: business.googleBusinessUrl || ""
+      });
+      setEditModalOpen(true);
+    }
+  };
+
+  const handleUpdateBusiness = async () => {
+    if (!business || !id) return;
+    
+    setIsUpdating(true);
+    try {
+      const updatedBusiness = await updateBusiness(id, editForm);
+      setBusiness(updatedBusiness);
+      setEditModalOpen(false);
+      toast({ 
+        title: "Business updated", 
+        description: "Your business information has been successfully updated." 
+      });
+    } catch (error) {
+      console.error("Failed to update business:", error);
+      toast({ 
+        title: "Update failed", 
+        description: "Failed to update business information. Please try again.", 
+        variant: "destructive" 
+      });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleFormChange = (field: string, value: string) => {
+    setEditForm(prev => ({ ...prev, [field]: value }));
+  };
 
   useEffect(() => {
     const updateQrSize = () => {
@@ -132,6 +186,13 @@ export default function BusinessDetail() {
             <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" /> {business.phone}</span>
           </div>
         </div>
+        <Button 
+          className="bg-gradient-primary shadow-elegant"
+          onClick={handleEditClick}
+        >
+          <Edit className="h-4 w-4 mr-2" />
+          Edit Business
+        </Button>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -226,6 +287,81 @@ export default function BusinessDetail() {
           )}
         </div>
       </div>
+
+      <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
+        <DialogContent className="sm:max-w-[425px] max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Business</DialogTitle>
+            <DialogDescription>
+              Update your business information below.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="name">Business Name</Label>
+              <Input
+                id="name"
+                value={editForm.name}
+                onChange={(e) => handleFormChange("name", e.target.value)}
+                placeholder="Enter business name"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={editForm.email}
+                onChange={(e) => handleFormChange("email", e.target.value)}
+                placeholder="Enter email address"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="phone">Phone</Label>
+              <Input
+                id="phone"
+                value={editForm.phone}
+                onChange={(e) => handleFormChange("phone", e.target.value)}
+                placeholder="Enter phone number"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="address">Address</Label>
+              <Textarea
+                id="address"
+                value={editForm.address}
+                onChange={(e) => handleFormChange("address", e.target.value)}
+                placeholder="Enter business address"
+                rows={3}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="googleBusinessUrl">Google Business URL (Optional)</Label>
+              <Input
+                id="googleBusinessUrl"
+                value={editForm.googleBusinessUrl}
+                onChange={(e) => handleFormChange("googleBusinessUrl", e.target.value)}
+                placeholder="Enter Google Business profile URL"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setEditModalOpen(false)}
+              disabled={isUpdating}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUpdateBusiness}
+              disabled={isUpdating || !editForm.name || !editForm.email || !editForm.phone || !editForm.address}
+            >
+              {isUpdating ? "Updating..." : "Update Business"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
     </div>
   );
