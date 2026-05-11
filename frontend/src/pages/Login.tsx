@@ -79,7 +79,7 @@ export default function Login() {
       <div className="hidden bg-gradient-hero p-12 lg:flex flex-col justify-center items-center text-white">
         <div className="max-w-md space-y-8">
           <div className="text-center space-y-4">
-            <h2 className="text-4xl font-bold">Collect Tips & Keep Customers Happy</h2>
+            <h2 className="text-4xl font-bold">Collect Feedback & Keep Customers Happy</h2>
             <p className="text-xl text-white/80">One QR code for instant customer feedback and satisfaction</p>
           </div>
           
