@@ -263,9 +263,10 @@ export default function WalletPage() {
     }
   };
 
-  const fee = Math.ceil(parseInt(amount) * 0.03) || 0;
-  const totalDeduction = (parseInt(amount) || 0) + fee;
-  const netAmount = (parseInt(amount) || 0) - fee;
+  const withdrawalAmount = parseInt(amount) || 0;
+  const fee = Math.ceil(withdrawalAmount * 0.03) || 0;
+  const totalDeduction = withdrawalAmount; // Total deducted from user's balance
+  const netAmount = withdrawalAmount - fee; // What user receives
 
   return (
     <div className="space-y-6">
