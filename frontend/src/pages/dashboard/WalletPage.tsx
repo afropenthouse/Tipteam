@@ -10,6 +10,20 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Check, ChevronDown } from "lucide-react";
+import { cn } from "@/lib/utils";
+import {
   Dialog,
   DialogTrigger,
   DialogContent,
@@ -66,6 +80,7 @@ export default function WalletPage() {
   const [bankCode, setBankCode] = useState<string>("");
   const [accountNumber, setAccountNumber] = useState<string>("");
   const [amount, setAmount] = useState<string>("");
+  const [bankSearchOpen, setBankSearchOpen] = useState(false);
   const { toast } = useToast();
 
   const apiUrl = import.meta.env.VITE_API_URL;
@@ -250,6 +265,7 @@ export default function WalletPage() {
 
   const fee = Math.ceil(parseInt(amount) * 0.03) || 0;
   const totalDeduction = (parseInt(amount) || 0) + fee;
+  const netAmount = (parseInt(amount) || 0) - fee;
 
   return (
     <div className="space-y-6">
@@ -300,18 +316,48 @@ export default function WalletPage() {
                 </div>
                 <div>
                   <Label htmlFor="bank">Bank Name</Label>
-                  <Select value={bankCode} onValueChange={(v) => { setBankCode(v); setAccountName(""); }}>
-                    <SelectTrigger id="bank">
-                      <SelectValue placeholder="Select bank" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {banks.map((bank) => (
-                        <SelectItem key={bank.code} value={bank.code}>
-                          {bank.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Popover open={bankSearchOpen} onOpenChange={setBankSearchOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={bankSearchOpen}
+                        className="w-full justify-between"
+                      >
+                        {bankCode
+                          ? banks.find((bank) => bank.code === bankCode)?.name
+                          : "Select bank"}
+                        <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-full p-0">
+                      <Command>
+                        <CommandInput placeholder="Search bank..." />
+                        <CommandEmpty>No bank found.</CommandEmpty>
+                        <CommandGroup>
+                          {banks.map((bank) => (
+                            <CommandItem
+                              key={bank.code}
+                              value={bank.name}
+                              onSelect={() => {
+                                setBankCode(bank.code);
+                                setAccountName("");
+                                setBankSearchOpen(false);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  bankCode === bank.code ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              {bank.name}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
                 <div>
                   <Label htmlFor="accountNumber">Account Number</Label>
@@ -344,6 +390,7 @@ export default function WalletPage() {
                   {amount && (
                     <div className="mt-1 text-xs text-muted-foreground">
                       <p>Processing fee (3%): {fmtNGN(fee)}</p>
+                      <p>You will receive: {fmtNGN(netAmount)}</p>
                       <p>Total deduction: {fmtNGN(totalDeduction)}</p>
                     </div>
                   )}
