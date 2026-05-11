@@ -49,7 +49,7 @@ export function AppSidebar() {
       <SidebarHeader className="border-b border-sidebar-border px-4 py-4">
         <div className="flex items-center gap-2">
           <img 
-            src="/logo.png" 
+            src="/logo2.png" 
             alt="Tracla Logo" 
             className="h-8 w-auto"
           />

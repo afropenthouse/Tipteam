@@ -30,7 +30,7 @@ export default function SignUp() {
       <div className="hidden bg-gradient-hero p-12 text-primary-foreground lg:flex lg:flex-col lg:justify-between">
         <Link to="/" className="flex items-center justify-center">
           <img 
-            src="/logo.png" 
+            src="/logo2.png" 
             alt="Tracla Logo" 
             className="h-8 w-auto"
           />

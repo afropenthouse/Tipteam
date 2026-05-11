@@ -172,7 +172,7 @@ export const sendFeedbackNotificationEmail = async (
         
         ${details.experience ? `
         <div style="background: #f0f9ff; padding: 20px; border-radius: 8px; margin: 20px 0;">
-          <h3 style="color: #0369a1; margin: 0 0 10px 0;">Customer Experience:</h3>
+          <h3 style="color: #0369a1; margin: 0 0 10px 0;">Customer Feedback:</h3>
           <p style="margin: 0; line-height: 1.5;">${details.experience}</p>
         </div>
         ` : ''}
