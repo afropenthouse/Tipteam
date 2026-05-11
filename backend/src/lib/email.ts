@@ -102,3 +102,32 @@ export const sendWithdrawalVerificationEmail = async (
     `,
   });
 };
+
+export const sendPaymentReceivedEmail = async (
+  email: string,
+  fullName: string,
+  details: { amount: number; customerName?: string; businessName: string; rating?: number }
+) => {
+  await sendMail({
+    to: email,
+    subject: "You've received a payment on Tracla!",
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h1 style="color: #6366F1;">Tracla</h1>
+        <p>Hi ${fullName},</p>
+        <p>Great news! You've received a new payment on your Tracla account.</p>
+        <div style="background: #f0fdf4; padding: 20px; border-radius: 8px; margin: 20px 0;">
+          <h3 style="color: #16a34a; margin: 0 0 10px 0;">Payment Details:</h3>
+          <p><strong>Amount:</strong> <span style="color: #16a34a; font-size: 18px;">NGN ${details.amount.toLocaleString()}</span></p>
+          <p><strong>Business:</strong> ${details.businessName}</p>
+          ${details.customerName ? `<p><strong>Customer:</strong> ${details.customerName}</p>` : ''}
+          ${details.rating ? `<p><strong>Rating:</strong> ${'★'.repeat(details.rating)} (${details.rating}/5)</p>` : ''}
+        </div>
+        <p style="margin-top: 20px; color: #666;">This payment has been added to your wallet balance and is available for withdrawal.</p>
+        <p style="margin-top: 20px; color: #666;">Log in to your dashboard to view your updated balance and withdrawal history.</p>
+        <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
+        <p style="color: #999; font-size: 12px;">Tracla - Instant Tips & Feedback</p>
+      </div>
+    `,
+  });
+};

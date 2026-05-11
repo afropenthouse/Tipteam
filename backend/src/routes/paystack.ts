@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { body, validationResult } from "express-validator";
 import prisma from "../lib/prisma.js";
 import { authenticate, AuthRequest } from "../middleware/auth.js";
+import { sendVerificationEmail, sendPasswordResetEmail, sendPaymentReceivedEmail } from "../lib/email.js";
 
 const router = Router();
 
@@ -175,6 +176,30 @@ router.post(
           paystackRef: reference,
         },
       });
+
+      // Send payment received email to business owner
+      try {
+        const business = await prisma.business.findUnique({
+          where: { id: businessId },
+          select: { name: true, owner: { select: { fullName: true, email: true } } }
+        });
+
+        if (business?.owner) {
+          await sendPaymentReceivedEmail(
+            business.owner.email,
+            business.owner.fullName,
+            {
+              amount,
+              customerName: metadata.payerEmail,
+              businessName: business.name,
+              rating: rating || undefined
+            }
+          );
+          console.log("Payment received email sent to:", business.owner.email);
+        }
+      } catch (emailError) {
+        console.error("Failed to send payment received email:", emailError);
+      }
 
       res.json({ success: true, amount, feedback });
     } catch (error: any) {
