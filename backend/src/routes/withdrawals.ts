@@ -195,7 +195,7 @@ router.post(
       const totalWithdrawnAmount = totalWithdrawn._sum?.amount ?? 0;
       const availableBalance = totalEarnedAmount - totalWithdrawnAmount;
       const fee = Math.ceil(amount * 0.03);
-      const totalDeduction = amount + fee;
+      const totalDeduction = amount; // Total deducted from user's balance
 
       if (totalDeduction > availableBalance) {
         return res.status(400).json({ error: "Insufficient balance" });
@@ -216,16 +216,22 @@ router.post(
 
       // Process instant transfer via Paystack
       try {
+        // First create transfer recipient
+        const recipientResult = await psRequest("POST", "/transferrecipient", {
+          type: "nuban",
+          name: accountName,
+          account_number: accountNumber,
+          bank_code: bankCode,
+          currency: "NGN",
+        });
+
+        // Then initiate transfer
         const transferResult = await psRequest("POST", "/transfer", {
           source: "balance",
           amount: amount * 100, // Convert to kobo
-          recipient: {
-            type: "nuban",
-            name: accountName,
-            account_number: accountNumber,
-            bank_code: bankCode,
-          },
+          recipient: recipientResult.data.recipient_code,
           reference: `withdrawal_${withdrawal.id}`,
+          reason: `Withdrawal for ${accountName}`,
         });
 
         console.log("Instant transfer successful:", transferResult);
