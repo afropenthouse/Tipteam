@@ -138,7 +138,7 @@ router.put(
     body("email").optional().isEmail().normalizeEmail(),
     body("phone").optional().trim().notEmpty(),
     body("address").optional().trim().notEmpty(),
-    body("googleBusinessUrl").optional().custom((value) => {
+    body("googleBusinessUrl").optional().custom((value: string) => {
       if (value === "" || value === null || value === undefined) return true;
       return /\S+/.test(value) && (value.startsWith("http://") || value.startsWith("https://"));
     }).withMessage("Must be a valid URL"),
