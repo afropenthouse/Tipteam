@@ -216,6 +216,8 @@ router.post(
 
       // Process instant transfer via Paystack
       try {
+        console.log("Starting transfer process for amount:", amount, "to account:", accountNumber);
+        
         // First create transfer recipient
         const recipientResult = await psRequest("POST", "/transferrecipient", {
           type: "nuban",
@@ -225,20 +227,34 @@ router.post(
           currency: "NGN",
         });
 
+        console.log("Recipient created successfully:", recipientResult.data.recipient_code);
+
         // Then initiate transfer
-        const transferResult = await psRequest("POST", "/transfer", {
+        const transferPayload = {
           source: "balance",
           amount: amount * 100, // Convert to kobo
           recipient: recipientResult.data.recipient_code,
           reference: `withdrawal_${withdrawal.id}`,
           reason: `Withdrawal for ${accountName}`,
-        });
+        };
+
+        console.log("Transfer payload:", JSON.stringify(transferPayload, null, 2));
+
+        const transferResult = await psRequest("POST", "/transfer", transferPayload);
 
         console.log("Instant transfer successful:", transferResult);
-      } catch (transferError) {
+      } catch (transferError: any) {
         console.error("Transfer failed but withdrawal recorded:", transferError);
+        console.error("Error details:", JSON.stringify(transferError, null, 2));
+        
+        // Log more details about the error
+        if (transferError?.data) {
+          console.error("Paystack error data:", transferError.data);
+        }
+        
         // Note: We don't fail the withdrawal request if transfer fails
         // The withdrawal is still marked as COMPLETED for instant user experience
+        // In production, you might want to implement a retry mechanism or manual review
       }
 
       res.json({ success: true, withdrawal });
