@@ -389,15 +389,27 @@ export default function WalletPage() {
                     onChange={(e) => setAmount(e.target.value)}
                   />
                   {amount && (
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      <p>Processing fee (3%): {fmtNGN(fee)}</p>
-                      <p>You will receive: {fmtNGN(netAmount)}</p>
-                      <p>Total deduction: {fmtNGN(totalDeduction)}</p>
+                    <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                      <div className="space-y-1">
+                        <p className="text-xs font-semibold text-amber-800">Processing Fee Breakdown:</p>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-gray-600">Withdrawal amount:</span>
+                          <span className="font-medium">{fmtNGN(withdrawalAmount)}</span>
+                        </div>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-gray-600">Processing fee (3%):</span>
+                          <span className="font-medium text-amber-600">{fmtNGN(fee)}</span>
+                        </div>
+                        <div className="border-t border-amber-200 pt-1 flex justify-between text-xs">
+                          <span className="font-semibold text-green-700">You will receive:</span>
+                          <span className="font-bold text-green-700">{fmtNGN(netAmount)}</span>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
-                <div className="text-xs text-muted-foreground">
-                  Note: A 3% processing fee will be deducted from your withdrawal amount.
+                <div className="text-xs text-amber-600 bg-amber-50 p-2 rounded">
+                  💡 A 3% processing fee is automatically deducted from all withdrawals
                 </div>
                 <DialogFooter>
                   <Button 

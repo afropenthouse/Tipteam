@@ -229,12 +229,18 @@ router.post(
 
         console.log("Recipient created successfully:", recipientResult.data.recipient_code);
 
-        // Then initiate transfer
+        // Calculate net amount after 3% processing fee
+        const processingFee = Math.ceil(amount * 0.03);
+        const netAmount = amount - processingFee;
+        
+        console.log(`Processing fee: ₦${processingFee}, Net amount to send: ₦${netAmount}`);
+
+        // Then initiate transfer with net amount (after fee)
         const transferPayload = {
-          amount: amount * 100, // Convert to kobo
+          amount: netAmount * 100, // Convert net amount to kobo
           recipient: recipientResult.data.recipient_code,
           reference: `withdrawal_${withdrawal.id}`,
-          reason: `Withdrawal for ${accountName}`,
+          reason: `Withdrawal for ${accountName} (fee: ₦${processingFee})`,
         };
 
         console.log("Transfer payload:", JSON.stringify(transferPayload, null, 2));
