@@ -48,15 +48,13 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b border-sidebar-border px-4 py-4">
         <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-primary text-primary-foreground font-bold">
-            T
-          </div>
+          <img 
+            src="/logo.png" 
+            alt="Tracla Logo" 
+            className="h-8 w-auto"
+          />
           {!collapsed && (
             <div className="flex flex-col">
-              <span className="text-sm font-semibold text-sidebar-foreground">Tracla</span>
-              <span className="text-[10px] uppercase tracking-wider text-sidebar-foreground/60">
-                Business
-              </span>
             </div>
           )}
         </div>

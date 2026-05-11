@@ -128,6 +128,7 @@ export type Business = {
   phone: string;
   address: string;
   googleBusinessUrl?: string;
+  allowTipping?: boolean;
   menuQrCode?: string;
   createdAt: string;
   updatedAt?: string;

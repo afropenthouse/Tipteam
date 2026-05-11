@@ -8,11 +8,12 @@ const Index = () => {
       {/* Nav */}
       <header className="border-b">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 md:px-8">
-          <Link to="/" className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-primary text-primary-foreground font-bold">
-              T
-            </div>
-            <span className="font-semibold">Tracla</span>
+          <Link to="/" className="flex items-center justify-center">
+            <img 
+              src="/logo.png" 
+              alt="Tracla Logo" 
+              className="h-8 w-auto"
+            />
           </Link>
           <div className="flex items-center gap-2">
             <Button variant="ghost" asChild>

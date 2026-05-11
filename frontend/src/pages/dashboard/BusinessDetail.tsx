@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { getBusiness, listFeedback, walletBalance, updateBusiness } from "@/lib/store";
 import { toast } from "@/hooks/use-toast";
 import type { Business, Feedback } from "@/lib/api";
@@ -29,7 +30,8 @@ export default function BusinessDetail() {
     email: "",
     phone: "",
     address: "",
-    googleBusinessUrl: ""
+    googleBusinessUrl: "",
+    allowTipping: false
   });
 
   useEffect(() => {
@@ -53,7 +55,8 @@ export default function BusinessDetail() {
         email: business.email,
         phone: business.phone,
         address: business.address,
-        googleBusinessUrl: business.googleBusinessUrl || ""
+        googleBusinessUrl: business.googleBusinessUrl || "",
+        allowTipping: business.allowTipping ?? false
       });
       setEditModalOpen(true);
     }
@@ -83,7 +86,7 @@ export default function BusinessDetail() {
     }
   };
 
-  const handleFormChange = (field: string, value: string) => {
+  const handleFormChange = (field: string, value: string | boolean) => {
     setEditForm(prev => ({ ...prev, [field]: value }));
   };
 
@@ -343,6 +346,21 @@ export default function BusinessDetail() {
                 onChange={(e) => handleFormChange("googleBusinessUrl", e.target.value)}
                 placeholder="Enter Google Business profile URL"
               />
+            </div>
+            <div className="flex items-center space-x-3 p-4 border rounded-lg bg-muted/30">
+              <Switch
+                id="allow-tipping-edit"
+                checked={editForm.allowTipping}
+                onCheckedChange={(checked) => handleFormChange("allowTipping", checked)}
+              />
+              <div className="space-y-1">
+                <Label htmlFor="allow-tipping-edit" className="text-sm font-medium cursor-pointer">
+                  Allow customers to tip your team
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  When enabled, customers can tip individual team members
+                </p>
+              </div>
             </div>
           </div>
           <DialogFooter>

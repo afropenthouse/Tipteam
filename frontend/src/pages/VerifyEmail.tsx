@@ -56,6 +56,13 @@ export default function VerifyEmail() {
     <div className="min-h-screen flex items-center justify-center p-6">
       <div className="w-full max-w-sm space-y-5">
         <div className="text-center">
+          <Link to="/" className="inline-flex items-center justify-center mb-6">
+            <img 
+              src="/logo.png" 
+              alt="Tracla Logo" 
+              className="h-8 w-auto"
+            />
+          </Link>
           <h1 className="text-2xl font-bold">Verify your email</h1>
           <p className="mt-1 text-sm text-muted-foreground">Enter the 6-digit code sent to your email</p>
         </div>

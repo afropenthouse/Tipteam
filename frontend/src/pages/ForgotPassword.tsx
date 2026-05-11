@@ -98,9 +98,12 @@ export default function ForgotPassword() {
       </div>
       <div className="flex items-center justify-center p-6 md:p-12">
         <form onSubmit={onSubmit} className="w-full max-w-sm space-y-5">
-          <Link to="/" className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-primary font-bold text-primary-foreground">T</div>
-            <span className="font-semibold">Tracla</span>
+          <Link to="/" className="flex items-center justify-center">
+            <img 
+              src="/logo.png" 
+              alt="Tracla Logo" 
+              className="h-8 w-auto"
+            />
           </Link>
           <div>
             <h1 className="text-2xl font-bold">Reset password</h1>

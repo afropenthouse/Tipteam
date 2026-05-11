@@ -28,9 +28,12 @@ export default function SignUp() {
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
       <div className="hidden bg-gradient-hero p-12 text-primary-foreground lg:flex lg:flex-col lg:justify-between">
-        <Link to="/" className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-primary font-bold">T</div>
-          <span className="font-semibold">Tracla</span>
+        <Link to="/" className="flex items-center justify-center">
+          <img 
+            src="/logo.png" 
+            alt="Tracla Logo" 
+            className="h-8 w-auto"
+          />
         </Link>
         <div>
           <h2 className="text-3xl font-bold leading-tight">

@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import { body } from "express-validator";
 import prisma from "../lib/prisma.js";
+import { sendFeedbackNotificationEmail } from "../lib/email.js";
 
 const router = Router();
 
@@ -37,7 +38,10 @@ router.post(
       // Treat rating of 0 as no rating (for tip-only flows)
       if (rating === 0) rating = undefined;
 
-      const business = await prisma.business.findUnique({ where: { id: businessId } });
+      const business = await prisma.business.findUnique({ 
+        where: { id: businessId },
+        include: { owner: true }
+      });
       if (!business) {
         return res.status(404).json({ error: "Business not found" });
       }
@@ -52,6 +56,26 @@ router.post(
           paystackRef,
         },
       });
+
+      // Send email notification to business owner
+      try {
+        await sendFeedbackNotificationEmail(
+          business.owner.email,
+          business.owner.fullName,
+          {
+            businessName: business.name,
+            rating: rating ?? undefined,
+            experience: experience ?? undefined,
+            complaint: undefined, // Add if you have complaint field
+            customerPhone: phone ?? undefined,
+            tipAmount: tipAmount && tipAmount > 0 ? tipAmount : undefined,
+          }
+        );
+        console.log("Feedback notification email sent to:", business.owner.email);
+      } catch (emailError) {
+        console.error("Failed to send feedback notification email:", emailError);
+        // Continue with response even if email fails
+      }
 
       res.status(201).json({ feedback });
     } catch (error) {

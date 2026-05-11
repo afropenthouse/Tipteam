@@ -57,6 +57,7 @@ router.post(
     body("phone").trim().notEmpty().withMessage("Phone is required"),
     body("address").trim().notEmpty().withMessage("Address is required"),
     body("googleBusinessUrl").optional({ checkFalsy: true }).isURL().withMessage("Must be a valid URL"),
+    body("allowTipping").optional().isBoolean().withMessage("Allow tipping must be a boolean"),
   ],
   async (req: AuthRequest, res: Response) => {
     try {
@@ -91,7 +92,7 @@ router.post(
         });
       }
 
-      const { name, email, phone, address, googleBusinessUrl } = req.body;
+      const { name, email, phone, address, googleBusinessUrl, allowTipping } = req.body;
 
       console.log("✅ Validation passed, creating business with data:", {
         ownerId: req.userId,
@@ -100,18 +101,16 @@ router.post(
         phone,
         address,
         googleBusinessUrl,
+        allowTipping,
       });
 
-      const business = await prisma.business.create({
-        data: {
-          ownerId: req.userId!,
-          name,
-          email,
-          phone,
-          address,
-          googleBusinessUrl: googleBusinessUrl || null,
-        },
-      });
+      // Use raw query to handle allowTipping field until Prisma client is properly updated
+      const businessResult = await prisma.$queryRaw`
+        INSERT INTO businesses (id, "ownerId", name, email, phone, address, "googleBusinessUrl", "allowTipping", "createdAt", "updatedAt")
+        VALUES (gen_random_uuid(), ${req.userId}, ${name}, ${email}, ${phone}, ${address}, ${googleBusinessUrl || null}, ${allowTipping || false}, NOW(), NOW())
+        RETURNING *
+      `;
+      const business = Array.isArray(businessResult) ? businessResult[0] : businessResult;
 
       console.log("✅ Business created successfully:", business);
       res.status(201).json({ business });
@@ -139,34 +138,60 @@ router.put(
     body("email").optional().isEmail().normalizeEmail(),
     body("phone").optional().trim().notEmpty(),
     body("address").optional().trim().notEmpty(),
-    body("googleBusinessUrl").optional().isURL(),
+    body("googleBusinessUrl").optional().custom((value) => {
+      if (value === "" || value === null || value === undefined) return true;
+      return /\S+/.test(value) && (value.startsWith("http://") || value.startsWith("https://"));
+    }).withMessage("Must be a valid URL"),
+    body("allowTipping").optional().isBoolean().withMessage("Allow tipping must be a boolean"),
   ],
   async (req: AuthRequest, res: Response) => {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
       }
 
-      const { name, email, phone, address, googleBusinessUrl } = req.body;
-      const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+      const { name, email, phone, address, googleBusinessUrl, allowTipping } = req.body;
 
+      // Check ownership first
       const existing = await prisma.business.findFirst({
         where: { id, ownerId: req.userId },
       });
-
+      
       if (!existing) {
         return res.status(404).json({ error: "Business not found" });
       }
 
+      // Build update data - only include fields that are defined
+      const updateData: any = {};
+      if (name !== undefined) updateData.name = name;
+      if (email !== undefined) updateData.email = email;
+      if (phone !== undefined) updateData.phone = phone;
+      if (address !== undefined) updateData.address = address;
+      if (googleBusinessUrl !== undefined) updateData.googleBusinessUrl = googleBusinessUrl || null;
+      if (allowTipping !== undefined) updateData.allowTipping = allowTipping;
+
       const business = await prisma.business.update({
         where: { id },
-        data: { name, email, phone, address, googleBusinessUrl },
+        data: updateData,
       });
 
       res.json({ business });
     } catch (error) {
-      res.status(500).json({ error: "Failed to update business" });
+      console.error("❌ Business update failed:", {
+        error: error,
+        message: error instanceof Error ? error.message : "Unknown error",
+        stack: error instanceof Error ? error.stack : undefined,
+        userId: req.userId,
+        businessId: id,
+        requestBody: req.body
+      });
+      res.status(500).json({ 
+        error: "Failed to update business",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
     }
   }
 );
@@ -195,28 +220,34 @@ router.get("/public/:id", async (req: AuthRequest, res: Response) => {
   try {
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
 
-    const business = await prisma.business.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        phone: true,
-        address: true,
-        googleBusinessUrl: true,
-        createdAt: true,
-        menus: {
-          select: {
-            id: true,
-            name: true,
-            publicId: true,
-            createdAt: true,
-          },
-          orderBy: { createdAt: 'desc' },
-          take: 1, // Only get the most recent menu
-        }
-      }
-    });
+    // Use raw query to handle allowTipping field until Prisma client is properly updated
+    const businessResult = await prisma.$queryRaw`
+      SELECT 
+        b.id, b.name, b.email, b.phone, b.address, b."googleBusinessUrl", b."allowTipping", b."createdAt",
+        COALESCE(
+          json_agg(
+            json_build_object(
+              'id', m.id,
+              'name', m.name,
+              'publicId', m."publicId",
+              'createdAt', m."createdAt"
+            )
+            ORDER BY m."createdAt" DESC
+          ) FILTER (WHERE m.id IS NOT NULL),
+          '[]'::json
+        ) as menus
+      FROM businesses b
+      LEFT JOIN LATERAL (
+        SELECT id, name, "publicId", "createdAt"
+        FROM menus 
+        WHERE "businessId" = b.id 
+        ORDER BY "createdAt" DESC 
+        LIMIT 1
+      ) m ON true
+      WHERE b.id = ${id}
+      GROUP BY b.id, b.name, b.email, b.phone, b.address, b."googleBusinessUrl", b."allowTipping", b."createdAt"
+    `;
+    const business = Array.isArray(businessResult) && businessResult.length > 0 ? businessResult[0] : null;
 
     if (!business) {
       return res.status(404).json({ error: "Business not found" });
@@ -266,25 +297,24 @@ router.get("/menu/:publicId", async (req: AuthRequest, res: Response) => {
   try {
     const publicId = Array.isArray(req.params.publicId) ? req.params.publicId[0] : req.params.publicId;
 
-    const menu = await prisma.menu.findFirst({
-      where: { publicId },
-      select: {
-        id: true,
-        name: true,
-        businessId: true,
-        createdAt: true,
-        publicId: true,
-        business: {
-          select: {
-            name: true,
-            email: true,
-            phone: true,
-            address: true,
-            googleBusinessUrl: true
-          }
-        }
-      }
-    });
+    // Use raw query to handle allowTipping field until Prisma client is properly updated
+    const menuResult = await prisma.$queryRaw`
+      SELECT 
+        m.id, m.name, m."businessId", m."createdAt", m."publicId",
+        json_build_object(
+          'name', b.name,
+          'email', b.email,
+          'phone', b.phone,
+          'address', b.address,
+          'googleBusinessUrl', b."googleBusinessUrl",
+          'allowTipping', b."allowTipping"
+        ) as business
+      FROM menus m
+      JOIN businesses b ON m."businessId" = b.id
+      WHERE m."publicId" = ${publicId}
+      LIMIT 1
+    `;
+    const menu = Array.isArray(menuResult) && menuResult.length > 0 ? menuResult[0] : null;
 
     if (!menu) {
       return res.status(404).json({ error: "Menu not found" });

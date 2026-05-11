@@ -40,9 +40,11 @@ export default function Rate() {
   const paymentReference = searchParams.get("reference") || searchParams.get("trxref");
 
   const progressPercent = useMemo(() => {
-    const order: Step[] = ["start", "rating", "experience", "phone", "tip", "email", "done"];
+    const baseOrder: Step[] = ["start", "rating", "experience", "phone", "done"];
+    const tipOrder: Step[] = ["start", "rating", "experience", "phone", "tip", "email", "done"];
+    const order = business && business.allowTipping ? tipOrder : baseOrder;
     return ((order.indexOf(step) + 1) / order.length) * 100;
-  }, [step]);
+  }, [step, business]);
 
   // Fetch business details
   useEffect(() => {
@@ -191,7 +193,12 @@ export default function Rate() {
                   tip: "start",
                   email: "tip",
                 };
-                setStep(prev[step] || "start");
+                // If tipping is disabled, go back to start instead of tip step
+                if (step === "phone" && !business.allowTipping) {
+                  setStep("start");
+                } else {
+                  setStep(prev[step] || "start");
+                }
               }}
               className="absolute left-0 top-1/2 -translate-y-1/2 rounded-full p-2 hover:bg-accent"
             >
@@ -226,12 +233,14 @@ export default function Rate() {
                 >
                   Give Feedback/Complaint
                 </Button>
-                <Button
-                  onClick={() => setStep("tip")}
-                  className="w-full bg-gradient-primary shadow-elegant text-base py-6"
-                >
-                  Tip a team member
-                </Button>
+                {business.allowTipping && (
+                  <Button
+                    onClick={() => setStep("tip")}
+                    className="w-full bg-gradient-primary shadow-elegant text-base py-6"
+                  >
+                    Tip a team member
+                  </Button>
+                )}
                 {business.menus && business.menus.length > 0 && (
                   <Button
                     asChild
@@ -346,11 +355,23 @@ export default function Rate() {
                 />
               </div>
               <div className="mt-6 flex gap-2">
-                 <Button variant="ghost" onClick={() => setStep("tip")} className="flex-1">
+                 <Button variant="ghost" onClick={() => {
+                   if (business.allowTipping) {
+                     setStep("tip");
+                   } else {
+                     void submit(0);
+                   }
+                 }} className="flex-1">
                    Skip
                  </Button>
                  <Button
-                   onClick={() => setStep("tip")}
+                   onClick={() => {
+                     if (business.allowTipping) {
+                       setStep("tip");
+                     } else {
+                       void submit(0);
+                     }
+                   }}
                    className="flex-[2] bg-gradient-primary shadow-elegant"
                  >
                    Continue

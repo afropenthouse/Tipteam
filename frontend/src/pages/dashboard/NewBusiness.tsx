@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -28,7 +29,7 @@ export default function NewBusiness() {
   const user = useCurrentUser();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({ name: "", email: "", phone: "", address: "", googleBusinessUrl: "" });
+  const [form, setForm] = useState({ name: "", email: "", phone: "", address: "", googleBusinessUrl: "", allowTipping: false });
   const [subscriptionStatus, setSubscriptionStatus] = useState<any>(null);
   const [checkingSubscription, setCheckingSubscription] = useState(true);
 
@@ -111,6 +112,7 @@ export default function NewBusiness() {
       phone: form.phone,
       address: form.address,
       googleBusinessUrl: form.googleBusinessUrl || undefined,
+      allowTipping: form.allowTipping,
     };
     
     console.log("Submitting cleaned form data:", cleanedForm);
@@ -270,6 +272,21 @@ export default function NewBusiness() {
             value={form.googleBusinessUrl} 
             onChange={(e) => setForm({ ...form, googleBusinessUrl: e.target.value })} 
           />
+        </div>
+        <div className="flex items-center space-x-3 p-4 border rounded-lg bg-muted/30">
+          <Switch
+            id="allow-tipping"
+            checked={form.allowTipping}
+            onCheckedChange={(checked) => setForm({ ...form, allowTipping: checked })}
+          />
+          <div className="space-y-1">
+            <Label htmlFor="allow-tipping" className="text-sm font-medium cursor-pointer">
+              Allow customers to tip your team
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              When enabled, customers can tip individual team members
+            </p>
+          </div>
         </div>
         <div className="flex justify-end gap-2">
           <Button type="button" variant="ghost" onClick={() => navigate(-1)}>Cancel</Button>
