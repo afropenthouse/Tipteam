@@ -66,7 +66,7 @@ router.post(
             businessName: business.name,
             rating: rating ?? undefined,
             experience: experience ?? undefined,
-            complaint: undefined, // Add if you have complaint field
+            complaint: experience && experience.toLowerCase().includes('complaint') ? experience : undefined,
             customerPhone: phone ?? undefined,
             tipAmount: tipAmount && tipAmount > 0 ? tipAmount : undefined,
           }

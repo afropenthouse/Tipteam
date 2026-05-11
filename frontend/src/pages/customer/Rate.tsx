@@ -354,29 +354,24 @@ export default function Rate() {
                   placeholder="+234 000 000 0000"
                 />
               </div>
-              <div className="mt-6 flex gap-2">
-                 <Button variant="ghost" onClick={() => {
-                   if (business.allowTipping) {
-                     setStep("tip");
-                   } else {
-                     void submit(0);
-                   }
-                 }} className="flex-1">
-                   Skip
-                 </Button>
-                 <Button
-                   onClick={() => {
-                     if (business.allowTipping) {
-                       setStep("tip");
-                     } else {
-                       void submit(0);
-                     }
-                   }}
-                   className="flex-[2] bg-gradient-primary shadow-elegant"
-                 >
-                   Continue
-                 </Button>
-               </div>
+              <div className="mt-6 space-y-2">
+                {business.allowTipping && (
+                  <Button
+                    onClick={() => setStep("tip")}
+                    className="w-full bg-gradient-primary shadow-elegant"
+                  >
+                    Add a Tip 💝
+                  </Button>
+                )}
+                <Button
+                  onClick={() => void submit(0)}
+                  disabled={submittingFeedback}
+                  variant={business.allowTipping ? "outline" : "default"}
+                  className="w-full"
+                >
+                  {submittingFeedback ? "Submitting..." : "Submit Feedback"}
+                </Button>
+              </div>
             </div>
           )}
 
@@ -426,26 +421,27 @@ export default function Rate() {
               </div>
 
               <div className="mt-6 space-y-2">
-                 <Button
-                   onClick={() => {
-                     if (!tipAmount || Number(tipAmount) <= 0) {
-                       toast({ title: "Enter an amount", variant: "destructive" });
-                       return;
-                     }
-                     setStep("email");
-                   }}
-                   className="w-full bg-gradient-primary shadow-elegant"
-                 >
-                   Make Transfer
-                 </Button>
-                 <Button
-                   onClick={() => void submit(0)}
-                   disabled={submittingFeedback}
-                   className="w-full"
-                 >
-                   No, thanks
-                 </Button>
-               </div>
+                <Button
+                  onClick={() => {
+                    if (!tipAmount || Number(tipAmount) <= 0) {
+                      toast({ title: "Enter an amount", variant: "destructive" });
+                      return;
+                    }
+                    setStep("email");
+                  }}
+                  className="w-full bg-gradient-primary shadow-elegant"
+                >
+                  Proceed to Payment 💳
+                </Button>
+                <Button
+                  onClick={() => void submit(0)}
+                  disabled={submittingFeedback}
+                  variant="outline"
+                  className="w-full"
+                >
+                  Skip Tip - Submit Feedback Only
+                </Button>
+              </div>
               <p className="mt-3 text-center text-[10px] text-muted-foreground">
                 Payments are securely processed by Paystack.
               </p>
