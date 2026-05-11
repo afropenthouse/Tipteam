@@ -231,7 +231,6 @@ router.post(
 
         // Then initiate transfer
         const transferPayload = {
-          source: "balance",
           amount: amount * 100, // Convert to kobo
           recipient: recipientResult.data.recipient_code,
           reference: `withdrawal_${withdrawal.id}`,
