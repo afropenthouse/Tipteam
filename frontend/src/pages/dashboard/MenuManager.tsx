@@ -83,17 +83,17 @@ export default function MenuManager() {
 
     setUploading(true);
     try {
-      const result = await uploadMenu(selectedBusinessId, selectedFile, menuName || 'Menu');
+      const result = await uploadMenu(selectedBusinessId, selectedFile, menuName || 'Price List');
       
       // Add the new menu to the menus array
       setMenus([result.menu, ...menus]);
       
       setSelectedFile(null);
       setMenuName('');
-      toast({ title: "Menu uploaded", description: "Your menu has been uploaded successfully" });
+      toast({ title: "Price List uploaded", description: "Your price list has been uploaded successfully" });
     } catch (error) {
       console.error("Upload error:", error);
-      toast({ title: "Upload failed", description: error instanceof Error ? error.message : "Failed to upload menu", variant: "destructive" });
+      toast({ title: "Upload failed", description: error instanceof Error ? error.message : "Failed to upload price list", variant: "destructive" });
     } finally {
       setUploading(false);
     }
@@ -105,10 +105,10 @@ export default function MenuManager() {
     try {
       await deleteMenu(selectedBusinessId, menuId);
       setMenus(menus.filter(m => m.id !== menuId));
-      toast({ title: "Menu deleted", description: "Menu has been deleted successfully" });
+      toast({ title: "Price List deleted", description: "Price List has been deleted successfully" });
     } catch (error) {
       console.error("Menu delete error:", error);
-      toast({ title: "Delete failed", description: error instanceof Error ? error.message : "Failed to delete menu", variant: "destructive" });
+      toast({ title: "Delete failed", description: error instanceof Error ? error.message : "Failed to delete price list", variant: "destructive" });
     }
   };
 
@@ -119,16 +119,16 @@ export default function MenuManager() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Menu Manager</h1>
-        <p className="text-sm text-muted-foreground">Upload and manage your menus</p>
+        <h1 className="text-2xl font-bold tracking-tight">Price List Manager</h1>
+        <p className="text-sm text-muted-foreground">Upload and manage your price lists</p>
       </div>
 
       {/* Upload New Menu */}
       <Card>
         <CardHeader>
-          <CardTitle>Upload Menu/Product/Service list</CardTitle>
+          <CardTitle>Upload Price List/Product/Service list</CardTitle>
           <CardDescription>
-            Upload a PDF file to create a new menu
+            Upload a PDF file to create a new price list
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -155,11 +155,11 @@ export default function MenuManager() {
             )}
             
             <div>
-              <Label htmlFor="menuName">Menu Name</Label>
+              <Label htmlFor="menuName">Price List Name</Label>
               <Input
                 id="menuName"
                 type="text"
-                placeholder="e.g., Restaurant Menu, Cafe Menu"
+                placeholder="e.g., Restaurant Price List, Cafe Price List"
                 value={menuName}
                 onChange={(e) => setMenuName(e.target.value)}
               />
@@ -187,7 +187,7 @@ export default function MenuManager() {
                         onClick={handleUpload}
                         disabled={uploading || !menuName.trim() || !selectedBusinessId}
                       >
-                        {uploading ? "Uploading..." : "Upload Menu"}
+                        {uploading ? "Uploading..." : "Upload Price List"}
                       </Button>
                       <Button
                         onClick={() => setSelectedFile(null)}
@@ -223,12 +223,12 @@ export default function MenuManager() {
         </CardContent>
       </Card>
 
-      {/* Existing Menus */}
+      {/* Existing Price Lists */}
       {menus.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Your Menus ({menus.length})</CardTitle>
-            <CardDescription>All menus for the selected business</CardDescription>
+            <CardTitle>Your Price Lists ({menus.length})</CardTitle>
+            <CardDescription>All price lists for the selected business</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">

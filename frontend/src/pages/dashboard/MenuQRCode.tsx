@@ -65,14 +65,14 @@ export default function MenuQRCode() {
 
     setUploadingMenu(true);
     try {
-      const result = await uploadMenu(id, selectedFile, menuName || 'Menu');
+      const result = await uploadMenu(id, selectedFile, menuName || 'Price List');
       setMenus([result.menu, ...menus]);
       setSelectedFile(null);
       setMenuName('');
-      toast({ title: "Menu uploaded", description: "Your menu has been uploaded successfully" });
+      toast({ title: "Price List uploaded", description: "Your price list has been uploaded successfully" });
     } catch (error) {
       console.error("Menu upload error:", error);
-      toast({ title: "Upload failed", description: error instanceof Error ? error.message : "Failed to upload menu", variant: "destructive" });
+      toast({ title: "Upload failed", description: error instanceof Error ? error.message : "Failed to upload price list", variant: "destructive" });
     } finally {
       setUploadingMenu(false);
     }
@@ -84,10 +84,10 @@ export default function MenuQRCode() {
     try {
       await deleteMenu(id, menuId);
       setMenus(menus.filter(m => m.id !== menuId));
-      toast({ title: "Menu deleted", description: "Menu has been deleted successfully" });
+      toast({ title: "Price List deleted", description: "Price List has been deleted successfully" });
     } catch (error) {
       console.error("Menu delete error:", error);
-      toast({ title: "Delete failed", description: error instanceof Error ? error.message : "Failed to delete menu", variant: "destructive" });
+      toast({ title: "Delete failed", description: error instanceof Error ? error.message : "Failed to delete price list", variant: "destructive" });
     }
   };
 
@@ -103,7 +103,7 @@ export default function MenuQRCode() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Menu QR Code</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Price List QR Code</h1>
           {business && <p className="text-muted-foreground">{business.name}</p>}
         </div>
         <Button asChild variant="outline">
@@ -113,19 +113,19 @@ export default function MenuQRCode() {
 
       {/* Upload Section */}
       <div className="rounded-2xl border bg-card p-6 shadow-card">
-        <h2 className="font-semibold mb-4">Upload New Menu</h2>
+        <h2 className="font-semibold mb-4">Upload New Price List</h2>
         
         <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6">
           <div className="text-center">
             <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-4" />
             <p className="text-sm text-muted-foreground mb-4">
-              Upload a new menu as PDF (max 10MB)
+              Upload a new price list as PDF (max 10MB)
             </p>
             
             <div className="mb-4">
               <input
                 type="text"
-                placeholder="Menu name (e.g., Breakfast Menu, Dinner Menu)"
+                placeholder="Price list name (e.g., Breakfast Price List, Dinner Price List)"
                 value={menuName}
                 onChange={(e) => setMenuName(e.target.value)}
                 className="w-full px-3 py-2 border rounded-md text-sm"
@@ -152,7 +152,7 @@ export default function MenuQRCode() {
                     disabled={uploadingMenu}
                     className="bg-gradient-primary"
                   >
-                    {uploadingMenu ? "Uploading..." : "Upload Menu"}
+                    {uploadingMenu ? "Uploading..." : "Upload Price List"}
                   </Button>
                   <Button
                     onClick={() => setSelectedFile(null)}
@@ -189,7 +189,7 @@ export default function MenuQRCode() {
       {/* Menus List */}
       {menus.length > 0 && (
         <div className="rounded-2xl border bg-card p-6 shadow-card">
-          <h2 className="font-semibold mb-4">Your Menus ({menus.length})</h2>
+          <h2 className="font-semibold mb-4">Your Price Lists ({menus.length})</h2>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
 {menus.map((menu) => {
                const menuUrl = `${window.location.origin}/menu-qr-view/${menu.publicId}`;
@@ -220,7 +220,7 @@ export default function MenuQRCode() {
                        className="max-w-full h-auto"
                      />
                     <p className="text-xs text-muted-foreground text-center">
-                      Scan to view {menu.name}
+                      Scan to view {menu.name} Price List
                     </p>
                     <div className="flex gap-2">
                        <Button 
