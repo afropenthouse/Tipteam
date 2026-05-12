@@ -61,15 +61,8 @@ router.post(
   ],
   async (req: AuthRequest, res: Response) => {
     try {
-      console.log("📝 Business creation request received:", {
-        userId: req.userId,
-        body: req.body,
-        headers: req.headers
-      });
-
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
-        console.log("❌ Validation errors:", errors.array());
         return res.status(400).json({ errors: errors.array() });
       }
 
@@ -94,16 +87,6 @@ router.post(
 
       const { name, email, phone, address, googleBusinessUrl, allowTipping } = req.body;
 
-      console.log("✅ Validation passed, creating business with data:", {
-        ownerId: req.userId,
-        name,
-        email,
-        phone,
-        address,
-        googleBusinessUrl,
-        allowTipping,
-      });
-
       // Use raw query to handle allowTipping field until Prisma client is properly updated
       const businessResult = await prisma.$queryRaw`
         INSERT INTO businesses (id, "ownerId", name, email, phone, address, "googleBusinessUrl", "allowTipping", "createdAt", "updatedAt")
@@ -112,16 +95,8 @@ router.post(
       `;
       const business = Array.isArray(businessResult) ? businessResult[0] : businessResult;
 
-      console.log("✅ Business created successfully:", business);
       res.status(201).json({ business });
     } catch (error) {
-      console.error("❌ Business creation failed:", {
-        error: error,
-        message: error instanceof Error ? error.message : "Unknown error",
-        stack: error instanceof Error ? error.stack : undefined,
-        userId: req.userId,
-        body: req.body
-      });
       res.status(500).json({ 
         error: "Failed to create business",
         details: error instanceof Error ? error.message : "Unknown error"
@@ -180,14 +155,6 @@ router.put(
 
       res.json({ business });
     } catch (error) {
-      console.error("❌ Business update failed:", {
-        error: error,
-        message: error instanceof Error ? error.message : "Unknown error",
-        stack: error instanceof Error ? error.stack : undefined,
-        userId: req.userId,
-        businessId: id,
-        requestBody: req.body
-      });
       res.status(500).json({ 
         error: "Failed to update business",
         details: error instanceof Error ? error.message : "Unknown error"
@@ -241,8 +208,7 @@ router.get("/public/:id", async (req: AuthRequest, res: Response) => {
         SELECT id, name, "publicId", "createdAt"
         FROM menus 
         WHERE "businessId" = b.id 
-        ORDER BY "createdAt" DESC 
-        LIMIT 1
+        ORDER BY "createdAt" DESC
       ) m ON true
       WHERE b.id = ${id}
       GROUP BY b.id, b.name, b.email, b.phone, b.address, b."googleBusinessUrl", b."allowTipping", b."createdAt"
@@ -277,8 +243,6 @@ router.get("/menu/:publicId/pdf", async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: "Menu not found or PDF missing" });
     }
 
-    console.log('Serving PDF from database for menu:', menu.name);
-
     // Send PDF buffer directly with proper headers for inline display
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${menu.name}.pdf"`);
@@ -287,7 +251,6 @@ router.get("/menu/:publicId/pdf", async (req: AuthRequest, res: Response) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.send(Buffer.from(menu.pdf));
   } catch (error) {
-    console.error('PDF serve error:', error);
     res.status(500).json({ error: "Failed to serve PDF" });
   }
 });
@@ -401,7 +364,6 @@ router.post("/:id/menus", authenticate, upload.single('menu'), async (req: AuthR
       menuUrl: customMenuUrl
     });
   } catch (error) {
-    console.error('Menu upload error:', error);
     res.status(500).json({ error: "Failed to upload menu" });
    }
  });
@@ -432,7 +394,6 @@ router.delete("/:id/menus/:menuId", authenticate, async (req: AuthRequest, res: 
 
     res.json({ message: "Menu deleted successfully" });
   } catch (error) {
-    console.error('Menu delete error:', error);
     res.status(500).json({ error: "Failed to delete menu" });
   }
 });
