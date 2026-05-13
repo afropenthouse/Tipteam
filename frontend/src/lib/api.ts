@@ -377,12 +377,38 @@ export const deleteMenu = async (businessId: string, menuId: string) => {
       'Authorization': `Bearer ${token}`,
     },
   });
-  
+
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.error || "Failed to delete menu");
   }
-  
+
+  return response.json();
+};
+
+export const updateMenu = async (businessId: string, menuId: string, file?: File, name?: string) => {
+  const formData = new FormData();
+  if (file) {
+    formData.append('menu', file);
+  }
+  if (name !== undefined) {
+    formData.append('name', name);
+  }
+
+  const token = getToken();
+  const response = await fetch(`${API_URL}/businesses/${businessId}/menus/${menuId}`, {
+    method: 'PATCH',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || "Failed to update menu");
+  }
+
   return response.json();
 };
 

@@ -398,4 +398,57 @@ router.delete("/:id/menus/:menuId", authenticate, async (req: AuthRequest, res: 
   }
 });
 
+// Update a menu (name and/or PDF)
+router.patch("/:id/menus/:menuId", authenticate, upload.single('menu'), async (req: AuthRequest, res: Response) => {
+  try {
+    const businessId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const menuId = Array.isArray(req.params.menuId) ? req.params.menuId[0] : req.params.menuId;
+    const { name } = req.body;
+
+    // Verify business ownership
+    const business = await prisma.business.findFirst({
+      where: { id: businessId, ownerId: req.userId },
+    });
+
+    if (!business) {
+      return res.status(404).json({ error: "Business not found" });
+    }
+
+    // Find the menu
+    const menu = await prisma.menu.findFirst({
+      where: { id: menuId, businessId },
+    });
+
+    if (!menu) {
+      return res.status(404).json({ error: "Menu not found" });
+    }
+
+    // Build update data
+    const updateData: any = {};
+    if (name !== undefined) {
+      updateData.name = name || 'Menu';
+    }
+    if (req.file) {
+      updateData.pdf = Buffer.from(req.file.buffer);
+    }
+
+    // Ensure something is being updated
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({ error: "No updates provided" });
+    }
+
+    const updatedMenu = await prisma.menu.update({
+      where: { id: menuId },
+      data: updateData,
+    });
+
+    // Return without pdf
+    const { pdf, ...rest } = updatedMenu;
+    res.json({ menu: rest });
+  } catch (error) {
+    console.error("Menu update error:", error);
+    res.status(500).json({ error: "Failed to update menu" });
+  }
+});
+
 export default router;
