@@ -29,7 +29,6 @@ const mainItems = [
   { title: "Users", url: "/admin/users", icon: Users },
   { title: "Businesses", url: "/admin/businesses", icon: Store },
   { title: "Feedback", url: "/admin/feedback", icon: MessageSquareWarning },
-  { title: "Withdrawals", url: "/admin/withdrawals", icon: Wallet },
 ];
 
 export function AdminAppSidebar() {

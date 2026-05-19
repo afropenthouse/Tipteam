@@ -4,10 +4,8 @@ import {
   Store,
   Star,
   MessageSquareWarning,
-  Wallet,
   CreditCard,
   TrendingUp,
-  Activity,
 } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
@@ -30,10 +28,8 @@ const statsCards = [
   { label: "Total Users", icon: Users, color: "text-blue-500" },
   { label: "Active Businesses", icon: Store, color: "text-green-500" },
   { label: "Total Feedback", icon: MessageSquareWarning, color: "text-yellow-500" },
-  { label: "Withdrawals", icon: Wallet, color: "text-purple-500" },
   { label: "Active Subscriptions", icon: CreditCard, color: "text-pink-500" },
   { label: "Total Tips Earned", icon: TrendingUp, color: "text-emerald-500" },
-  { label: "Total Withdrawn", icon: Activity, color: "text-orange-500" },
 ];
 
 export default function AdminDashboard() {
@@ -49,10 +45,8 @@ export default function AdminDashboard() {
     { label: "Total Users", value: stats?.totalUsers ?? 0 },
     { label: "Active Businesses", value: stats?.totalBusinesses ?? 0 },
     { label: "Total Feedback", value: stats?.totalFeedback ?? 0 },
-    { label: "Withdrawals", value: stats?.totalWithdrawals ?? 0 },
     { label: "Active Subscriptions", value: stats?.activeSubscriptions ?? 0 },
     { label: "Total Tips Earned", value: fmtNGN(stats?.totalTipsEarned ?? 0), prefix: true },
-    { label: "Total Withdrawn", value: fmtNGN(stats?.totalAmountWithdrawn ?? 0), prefix: true },
   ];
 
   return (

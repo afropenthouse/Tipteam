@@ -32,7 +32,6 @@ import AdminDashboard from "./pages/admin/Dashboard.tsx";
 import AdminUsers from "./pages/admin/Users.tsx";
 import AdminBusinesses from "./pages/admin/Businesses.tsx";
 import AdminFeedback from "./pages/admin/Feedback.tsx";
-import AdminWithdrawals from "./pages/admin/Withdrawals.tsx";
 import UserDetail from "./pages/admin/UserDetail.tsx";
 import AdminDashboardLayout from "./components/admin/AdminDashboardLayout.tsx";
 import PublicBookingPage from "./pages/Book.tsx";
@@ -87,7 +86,6 @@ const App = () => (
             <Route path="businesses" element={<AdminBusinesses />} />
             <Route path="businesses/:id" element={<AdminDashboard />} />
             <Route path="feedback" element={<AdminFeedback />} />
-            <Route path="withdrawals" element={<AdminWithdrawals />} />
             
           </Route>
 

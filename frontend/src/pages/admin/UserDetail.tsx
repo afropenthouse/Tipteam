@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { User, Store, Star, MessageSquareWarning, Wallet, ArrowLeft, UserCheck, UserX } from "lucide-react";
+import { User, Store, Star, MessageSquareWarning, ArrowLeft, UserCheck, UserX, Mail } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,19 +21,11 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-const fmtNGN = (n: number) => `₦${n.toLocaleString()}`;
-
 export default function AdminUserDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-
-  const { data: walletData } = useQuery({
-    queryKey: ["admin-user-wallet", id],
-    queryFn: () => adminApi.getBusinessWithdrawals(user?.businesses?.[0]?.id ?? ""),
-    enabled: !!user?.businesses?.length,
-  });
 
   useEffect(() => {
     // In a real app, fetch from API. For now, use cached data pattern.
@@ -180,33 +172,6 @@ export default function AdminUserDetail() {
           )}
         </CardContent>
       </Card>
-
-      {/* Wallet summary */}
-      {walletData && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Wallet className="h-5 w-5" /> Wallet Summary
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div className="rounded-lg border p-4">
-                <p className="text-xs uppercase tracking-wider text-muted-foreground">Total Earned</p>
-                <p className="text-xl font-bold text-emerald-600">{fmtNGN(walletData.totalEarned ?? 0)}</p>
-              </div>
-              <div className="rounded-lg border p-4">
-                <p className="text-xs uppercase tracking-wider text-muted-foreground">Total Withdrawn</p>
-                <p className="text-xl font-bold text-orange-600">{fmtNGN(walletData.totalWithdrawn ?? 0)}</p>
-              </div>
-              <div className="rounded-lg border p-4">
-                <p className="text-xs uppercase tracking-wider text-muted-foreground">Available</p>
-                <p className="text-xl font-bold">{fmtNGN(walletData.availableBalance ?? 0)}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Subscriptions */}
       <Card>

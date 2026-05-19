@@ -1,3 +1,5 @@
+import { Business, Feedback, User } from "./api";
+
 const API_URL = import.meta.env.VITE_API_URL;
 
 const getAdminToken = () => localStorage.getItem("ttt:admin:token");
@@ -10,7 +12,21 @@ const handleResponse = async (res: Response) => {
   return data;
 };
 
-export const adminApi = {
+export interface AdminStats {
+  totalUsers: number;
+  totalBusinesses: number;
+  totalFeedback: number;
+  activeSubscriptions: number;
+  totalTipsEarned: number;
+}
+
+export interface AdminUser extends User {
+  businessCount: number;
+  feedbackCount: number;
+  hasActiveSubscription: boolean;
+}
+
+class AdminApi {
   async get<T>(endpoint: string): Promise<T> {
     const res = await fetch(`${API_URL}/admin${endpoint}`, {
       headers: {
@@ -18,7 +34,7 @@ export const adminApi = {
       },
     });
     return handleResponse(res);
-  },
+  }
 
   async post<T>(endpoint: string, body: unknown): Promise<T> {
     const res = await fetch(`${API_URL}/admin${endpoint}`, {
@@ -30,7 +46,7 @@ export const adminApi = {
       body: JSON.stringify(body),
     });
     return handleResponse(res);
-  },
+  }
 
   async put<T>(endpoint: string, body: unknown): Promise<T> {
     const res = await fetch(`${API_URL}/admin${endpoint}`, {
@@ -42,7 +58,7 @@ export const adminApi = {
       body: JSON.stringify(body),
     });
     return handleResponse(res);
-  },
+  }
 
   async patch<T>(endpoint: string, body?: unknown): Promise<T> {
     const res = await fetch(`${API_URL}/admin${endpoint}`, {
@@ -54,7 +70,7 @@ export const adminApi = {
       body: body ? JSON.stringify(body) : undefined,
     });
     return handleResponse(res);
-  },
+  }
 
   async delete<T>(endpoint: string): Promise<T> {
     const res = await fetch(`${API_URL}/admin${endpoint}`, {
@@ -64,42 +80,42 @@ export const adminApi = {
       },
     });
     return handleResponse(res);
-  },
+  }
 
   // Dashboard stats
   getDashboardStats() {
-    return this.get<{ stats: any }>("/dashboard-stats");
-  },
+    return this.get<{ stats: AdminStats }>("/dashboard-stats");
+  }
 
   // Users
   getUsers() {
-    return this.get<{ users: any[] }>("/users");
-  },
+    return this.get<{ users: AdminUser[] }>("/users");
+  }
 
   getUser(id: string) {
     return this.get<{ user: any }>(`/users/${id}`);
-  },
+  }
 
   toggleUser(id: string) {
-    return this.patch(`/users/${id}/toggle`);
-  },
+    return this.patch<{ user: User }>(`/users/${id}/toggle`);
+  }
 
   // Businesses
   getBusinesses() {
-    return this.get<{ businesses: any[] }>("/businesses");
-  },
+    return this.get<{ businesses: Business[] }>("/businesses");
+  }
 
   getBusiness(id: string) {
-    return this.get<{ business: any; wallet: any }>(`/businesses/${id}`);
-  },
+    return this.get<{ business: Business; wallet: any }>(`/businesses/${id}`);
+  }
 
   updateBusiness(id: string, data: any) {
-    return this.put<{ business: any }>(`/businesses/${id}`, data);
-  },
+    return this.put<{ business: Business }>(`/businesses/${id}`, data);
+  }
 
   deleteBusiness(id: string) {
     return this.delete<{ message: string }>(`/businesses/${id}`);
-  },
+  }
 
   // Feedback
   getFeedback(params?: { page?: number; limit?: number; businessId?: string; rating?: number; search?: string }) {
@@ -112,32 +128,21 @@ export const adminApi = {
       if (params.search) query.set("search", params.search);
     }
     const qs = query.toString();
-    return this.get<{ feedback: any[]; total: number; page: number; limit: number; pages: number }>(
+    return this.get<{ feedback: Feedback[]; total: number; page: number; limit: number; pages: number }>(
       `/feedback${qs ? "?" + qs : ""}`
     );
-  },
+  }
 
   getBusinessFeedback(businessId: string, page = 1, limit = 50) {
-    return this.get<{ feedback: any[]; total: number }>(`/feedback/${businessId}?page=${page}&limit=${limit}`);
-  },
+    return this.get<{ feedback: Feedback[]; total: number }>(`/feedback/${businessId}?page=${page}&limit=${limit}`);
+  }
 
   deleteFeedback(id: string) {
     return this.delete<{ message: string }>(`/feedback/${id}`);
-  },
+  }
+}
 
-  // Withdrawals
-  getWithdrawals() {
-    return this.get<{ withdrawals: any[] }>("/withdrawals");
-  },
-
-  getBusinessWithdrawals(businessId: string) {
-    return this.get<{ withdrawals: any[]; wallet: any }>(`/withdrawals/${businessId}`);
-  },
-
-  updateWithdrawalStatus(id: string, status: string) {
-    return this.patch<{ withdrawal: any }>(`/withdrawals/${id}/status`, { status });
-  },
-};
+export const adminApi = new AdminApi();
 
 export const isAdminLoggedIn = () => !!localStorage.getItem("ttt:admin:token");
 
