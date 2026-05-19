@@ -3,10 +3,12 @@ import cors from "cors";
 import dotenv from "dotenv";
 import authRoutes from "./routes/auth.js";
 import businessRoutes from "./routes/businesses.js";
+import bookingRoutes from "./routes/bookings.js";
 import feedbackRoutes from "./routes/feedback.js";
 import withdrawalRoutes from "./routes/withdrawals.js";
 import paystackRoutes from "./routes/paystack.js";
 import subscriptionRoutes from "./routes/subscriptions.js";
+import adminRoutes from "./routes/admin/index.js";
 
 dotenv.config();
 
@@ -38,10 +40,18 @@ app.use(express.json());
 
 app.use("/api/auth", authRoutes);
 app.use("/api/businesses", businessRoutes);
+app.use("/api/bookings", bookingRoutes);
 app.use("/api/feedback", feedbackRoutes);
 app.use("/api/withdrawals", withdrawalRoutes);
 app.use("/api/paystack", paystackRoutes);
 app.use("/api/subscriptions", subscriptionRoutes);
+app.use("/api/admin", adminRoutes);
+
+// Error handling middleware
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error("Global error handler:", err);
+  res.status(500).json({ error: "Internal server error", details: err.message });
+});
 
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok" });

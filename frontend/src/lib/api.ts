@@ -504,3 +504,226 @@ export const cancelSubscription = async (subscriptionId: string) => {
 export const getBanks = async () => {
   return api.get<{ banks: Array<{ id: string; name: string; code: string }> }>("/paystack/banks").then(data => data.banks);
 };
+
+export type Booking = {
+  id: string;
+  bookingProfileId: string;
+  date: string; // ISO date string
+  customerName: string;
+  customerPhone: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt?: string;
+  bookingProfile?: {
+    name: string;
+    publicId: string;
+  };
+};
+
+export type UnavailableDate = {
+  id: string;
+  bookingProfileId: string;
+  date: string;
+  createdAt: string;
+};
+
+export type BookingPicture = {
+  id: string;
+  bookingProfileId: string;
+  imageUrl: string;
+  publicId?: string;
+  createdAt: string;
+};
+
+export type BookingProfile = {
+  id: string;
+  userId: string;
+  businessId?: string;
+  name: string;
+  location: string;
+  description?: string;
+  publicId: string;
+  createdAt: string;
+  updatedAt: string;
+  pictures: BookingPicture[];
+  unavailableDates: UnavailableDate[];
+  business?: {
+    id: string;
+    name: string;
+  };
+};
+
+export type PublicBookingProfile = {
+  id: string;
+  userId: string;
+  name: string;
+  location: string;
+  description?: string;
+  publicId: string;
+  createdAt: string;
+  updatedAt: string;
+  pictures: BookingPicture[];
+  unavailableDates: UnavailableDate[];
+  user?: {
+    fullName: string;
+    email: string;
+  };
+};
+
+// Booking API functions
+export const listBookingProfiles = async (): Promise<BookingProfile[]> => {
+  const { profiles } = await api.get<{ profiles: BookingProfile[] }>("/bookings");
+  return profiles;
+};
+
+export const getBookingProfile = async (id: string): Promise<BookingProfile | undefined> => {
+  const { profile } = await api.get<{ profile: BookingProfile }>(`/bookings/${id}`);
+  return profile;
+};
+
+export const getPublicBookingProfile = async (publicId: string): Promise<PublicBookingProfile | undefined> => {
+  const response = await fetch(`${API_URL}/bookings/public/${publicId}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    let errorMessage = "Booking profile not found";
+    try {
+      const error = await response.json();
+      errorMessage = error.error || errorMessage;
+    } catch (e) {
+      errorMessage = response.statusText || errorMessage;
+    }
+    throw new Error(errorMessage);
+  }
+
+  try {
+    const { profile } = await response.json();
+    return profile;
+  } catch (e) {
+    throw new Error("Invalid response from server");
+  }
+};
+
+export const createBookingProfile = async (data: {
+  name: string;
+  location: string;
+  description?: string;
+  businessId?: string;
+}): Promise<BookingProfile> => {
+  const { profile } = await api.post<{ profile: BookingProfile }>("/bookings", data);
+  return profile;
+};
+
+export const updateBookingProfile = async (id: string, data: Partial<BookingProfile>): Promise<BookingProfile> => {
+  const { profile } = await api.put<{ profile: BookingProfile }>(`/bookings/${id}`, data);
+  return profile;
+};
+
+export const uploadBookingPictures = async (profileId: string, files: File[]): Promise<BookingPicture[]> => {
+  const formData = new FormData();
+  files.forEach(file => formData.append('images', file));
+
+  const token = getToken();
+  const response = await fetch(`${API_URL}/bookings/${profileId}/pictures`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || "Failed to upload pictures");
+  }
+
+  const data = await response.json();
+  return data.pictures;
+};
+
+export const deleteBookingPicture = async (pictureId: string): Promise<void> => {
+  const token = getToken();
+  const response = await fetch(`${API_URL}/bookings/pictures/${pictureId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || "Failed to delete picture");
+  }
+};
+
+export const addUnavailableDates = async (profileId: string, dates: string[]): Promise<UnavailableDate[]> => {
+  const { dates: result } = await api.post<{ dates: UnavailableDate[] }>(`/bookings/${profileId}/unavailable-dates`, { dates });
+  return result;
+};
+
+export const removeUnavailableDate = async (dateId: string): Promise<void> => {
+  await api.delete(`/bookings/unavailable-dates/${dateId}`);
+};
+
+export const getUnavailableDates = async (publicId: string): Promise<string[]> => {
+  const response = await fetch(`${API_URL}/bookings/public/${publicId}/unavailable-dates`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to get unavailable dates");
+  }
+
+  const data = await response.json();
+  return data.dates;
+};
+
+export const deleteBookingProfile = async (id: string): Promise<void> => {
+  await api.delete(`/bookings/${id}`);
+};
+
+export const getBookingShareUrl = (publicId: string): string => {
+  return `${window.location.origin}/book/${publicId}`;
+};
+
+// Booking API functions
+export const createBooking = async (bookingData: {
+  bookingProfileId: string;
+  date: string; // yyyy-mm-dd
+  customerName: string;
+  customerPhone: string;
+  notes?: string;
+}) => {
+  const response = await fetch(`${API_URL}/bookings/create`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(bookingData),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || "Failed to create booking");
+  }
+
+  const data = await response.json();
+  return data.booking;
+};
+
+export const getBookingsForProfile = async (profileId: string): Promise<Booking[]> => {
+  const { bookings } = await api.get<{ bookings: Booking[] }>(`/bookings/profile/${profileId}`);
+  return bookings;
+};
+
+export const getAllBookings = async (): Promise<Booking[]> => {
+  const { bookings } = await api.get<{ bookings: Booking[] }>("/bookings/all-bookings");
+  return bookings;
+};

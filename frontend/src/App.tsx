@@ -20,12 +20,22 @@ import Ratings from "./pages/dashboard/Ratings.tsx";
 import Feedback from "./pages/dashboard/Feedback.tsx";
 import WalletPage from "./pages/dashboard/WalletPage.tsx";
 import Subscriptions from "./pages/dashboard/Subscriptions.tsx";
+import BookingPage from "./pages/dashboard/BookingPage.tsx";
 import Rate from "./pages/customer/Rate.tsx";
 import Menu from "./pages/Menu.tsx";
 import MenuQRCode from "./pages/dashboard/MenuQRCode.tsx";
 import MenuQRGenerator from "./pages/MenuQRGenerator.tsx";
 import MenuManager from "./pages/dashboard/MenuManager.tsx";
 import MenuQRViewer from "./pages/MenuQRViewer.tsx";
+import AdminLogin from "./pages/admin/AdminLogin.tsx";
+import AdminDashboard from "./pages/admin/Dashboard.tsx";
+import AdminUsers from "./pages/admin/Users.tsx";
+import AdminBusinesses from "./pages/admin/Businesses.tsx";
+import AdminFeedback from "./pages/admin/Feedback.tsx";
+import AdminWithdrawals from "./pages/admin/Withdrawals.tsx";
+import UserDetail from "./pages/admin/UserDetail.tsx";
+import AdminDashboardLayout from "./components/admin/AdminDashboardLayout.tsx";
+import PublicBookingPage from "./pages/Book.tsx";
 
 const queryClient = new QueryClient();
 
@@ -46,19 +56,41 @@ const App = () => (
           <Route path="/rate/:businessId" element={<Rate />} />
           <Route path="/menu/:publicId" element={<Menu />} />
           <Route path="/menu-qr-generator" element={<MenuQRGenerator />} />
-           <Route path="/menu-qr-view/:publicId" element={<MenuQRViewer />} />
+          <Route path="/menu-qr-view/:publicId" element={<MenuQRViewer />} />
+
+          {/* User Dashboard */}
           <Route path="/dashboard" element={<DashboardLayout />}>
             <Route index element={<Overview />} />
             <Route path="businesses" element={<Businesses />} />
             <Route path="businesses/new" element={<NewBusiness />} />
             <Route path="businesses/:id" element={<BusinessDetail />} />
             <Route path="businesses/:id/menu-qr" element={<MenuQRCode />} />
+            <Route path="bookings" element={<BookingPage />} />
+            <Route path="bookings/:id" element={<BookingPage />} />
             <Route path="menu-qr-generator" element={<MenuManager />} />
             <Route path="ratings" element={<Ratings />} />
             <Route path="complaints" element={<Feedback />} />
             <Route path="wallet" element={<WalletPage />} />
             <Route path="subscriptions" element={<Subscriptions />} />
           </Route>
+
+          {/* Public Booking Page */}
+          <Route path="/book/:publicId" element={<PublicBookingPage />} />
+
+          {/* Admin Routes */}
+          <Route path="/admin/login" element={<AdminLogin />} />
+          <Route path="/admin" element={<AdminDashboardLayout />}>
+            <Route index element={<AdminDashboard />} />
+            <Route path="dashboard" element={<AdminDashboard />} />
+            <Route path="users" element={<AdminUsers />} />
+            <Route path="users/:id" element={<UserDetail />} />
+            <Route path="businesses" element={<AdminBusinesses />} />
+            <Route path="businesses/:id" element={<AdminDashboard />} />
+            <Route path="feedback" element={<AdminFeedback />} />
+            <Route path="withdrawals" element={<AdminWithdrawals />} />
+            
+          </Route>
+
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

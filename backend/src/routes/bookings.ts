@@ -1,0 +1,573 @@
+import { Router, Response, Request } from "express";
+import { body, validationResult } from "express-validator";
+import multer from "multer";
+import prisma from "../lib/prisma.js";
+import { authenticate, AuthRequest } from "../middleware/auth.js";
+import cloudinary from "../lib/cloudinary.js";
+
+const router = Router();
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024,
+  },
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'));
+    }
+  }
+});
+
+const getId = (id: string | string[] | undefined): string => {
+  if (Array.isArray(id)) return id[0];
+  return id || "";
+};
+
+// Get all booking profiles for user
+router.get("/", authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const profiles = await prisma.bookingProfile.findMany({
+      where: {
+        userId: req.userId
+      },
+      include: {
+        pictures: true,
+        unavailableDates: true,
+        business: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
+        _count: {
+          select: {
+            bookings: true
+          }
+        }
+      },
+      orderBy: { createdAt: "desc" }
+    });
+
+    // Map to include bookingsCount for frontend
+    const profilesWithCount = profiles.map(p => ({
+      ...p,
+      bookingsCount: p._count.bookings
+    }));
+
+    res.json({ profiles: profilesWithCount });
+  } catch (error) {
+    console.error("Get booking profiles error:", error);
+    res.status(500).json({ error: "Failed to get booking profiles" });
+  }
+});
+
+// Get a specific booking profile (owner only)
+router.get("/:id", authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const id = getId(req.params.id);
+    const profile = await prisma.bookingProfile.findFirst({
+      where: {
+        id,
+        userId: req.userId
+      },
+      include: {
+        pictures: true,
+        unavailableDates: true
+      }
+    });
+    if (!profile) {
+      return res.status(404).json({ error: "Booking profile not found" });
+    }
+    res.json({ profile });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to get booking profile" });
+  }
+});
+
+// Get public booking profile by publicId
+router.get("/public/:publicId", async (req: Request, res: Response) => {
+  try {
+    const publicId = getId(req.params.publicId);
+    const profile = await prisma.bookingProfile.findUnique({
+      where: { publicId },
+      include: {
+        pictures: true,
+        unavailableDates: true,
+        user: {
+          select: {
+            fullName: true,
+            email: true
+          }
+        },
+        business: {
+          select: {
+            id: true,
+            name: true
+          }
+        }
+      }
+    });
+    if (!profile) {
+      return res.status(404).json({ error: "Booking profile not found" });
+    }
+    res.json({ profile });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to get booking profile" });
+  }
+});
+
+// Create a booking profile
+router.post(
+  "/",
+  authenticate,
+  [
+    body("name").trim().notEmpty().withMessage("Business name is required"),
+    body("location").trim().notEmpty().withMessage("Location is required"),
+    body("description").optional().trim(),
+    body("businessId").optional().isString(),
+  ],
+  async (req: AuthRequest, res: Response) => {
+    try {
+      if (!req.userId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const { name, location, description, businessId } = req.body;
+
+      const profile = await prisma.bookingProfile.create({
+        data: {
+          userId: req.userId,
+          name,
+          location,
+          description: description || null,
+          businessId: businessId || null,
+        }
+      });
+
+      res.status(201).json({ profile });
+    } catch (error) {
+      res.status(500).json({ 
+        error: "Failed to create booking profile",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  }
+);
+
+// Update a booking profile
+router.put(
+  "/:id",
+  authenticate,
+  [
+    body("name").optional().trim().notEmpty(),
+    body("location").optional().trim().notEmpty(),
+    body("description").optional().trim(),
+    body("businessId").optional().isString(),
+  ],
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const id = getId(req.params.id);
+      const { name, location, description, businessId } = req.body;
+
+      const existing = await prisma.bookingProfile.findFirst({
+        where: {
+          id,
+          userId: req.userId
+        }
+      });
+
+      if (!existing) {
+        return res.status(404).json({ error: "Booking profile not found" });
+      }
+
+      const profile = await prisma.bookingProfile.update({
+        where: { id },
+        data: {
+          name: name !== undefined ? name : existing.name,
+          location: location !== undefined ? location : existing.location,
+          description: description !== undefined ? description : existing.description,
+          businessId: businessId !== undefined ? businessId : existing.businessId,
+        }
+      });
+
+      res.json({ profile });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update booking profile" });
+    }
+  }
+);
+
+// Upload images for a booking profile
+router.post("/:id/pictures", authenticate, upload.array('images', 10), async (req: AuthRequest, res: Response) => {
+  try {
+    const id = getId(req.params.id);
+    
+    const existing = await prisma.bookingProfile.findFirst({
+      where: {
+        id,
+        userId: req.userId
+      }
+    });
+
+    if (!existing) {
+      return res.status(404).json({ error: "Booking profile not found" });
+    }
+
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ error: "No files uploaded" });
+    }
+
+    const files = req.files as Express.Multer.File[];
+    const uploadedPictures = [];
+
+    for (const file of files) {
+      const uploadResult = await new Promise((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream(
+          { folder: 'bookings' },
+          (error, result) => {
+            if (error) reject(error);
+            else resolve(result);
+          }
+        );
+        uploadStream.end(file.buffer);
+      });
+
+      const picture = await prisma.bookingPicture.create({
+        data: {
+          bookingProfileId: id,
+          imageUrl: (uploadResult as any).secure_url,
+          publicId: (uploadResult as any).public_id
+        }
+      });
+      uploadedPictures.push(picture);
+    }
+
+    res.json({ pictures: uploadedPictures });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to upload pictures" });
+  }
+});
+
+// Delete a picture
+router.delete("/pictures/:pictureId", authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const pictureId = getId(req.params.pictureId);
+
+    const picture = await prisma.bookingPicture.findUnique({
+      where: { id: pictureId },
+      include: {
+        bookingProfile: true
+      }
+    });
+
+    if (!picture) {
+      return res.status(404).json({ error: "Picture not found" });
+    }
+
+    if (picture.bookingProfile?.userId !== req.userId) {
+      return res.status(403).json({ error: "Not authorized" });
+    }
+
+    if (picture.publicId) {
+      await cloudinary.uploader.destroy(picture.publicId);
+    }
+
+    await prisma.bookingPicture.delete({ where: { id: pictureId } });
+
+    res.json({ message: "Picture deleted" });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to delete picture" });
+  }
+});
+
+// Add unavailable dates
+router.post("/:id/unavailable-dates", authenticate, [
+  body("dates").isArray().withMessage("Dates must be an array"),
+], async (req: AuthRequest, res: Response) => {
+  try {
+    const id = getId(req.params.id);
+    const { dates } = req.body;
+
+    const existing = await prisma.bookingProfile.findFirst({
+      where: {
+        id,
+        userId: req.userId
+      }
+    });
+
+    if (!existing) {
+      return res.status(404).json({ error: "Booking profile not found" });
+    }
+
+    const unavailableDates = await Promise.all(
+      dates.map((dateStr: string) =>
+        prisma.unavailableDate.create({
+          data: {
+            bookingProfileId: id,
+            date: new Date(dateStr)
+          }
+        })
+      )
+    );
+
+    res.json({ dates: unavailableDates });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to add unavailable dates" });
+  }
+});
+
+// Remove an unavailable date
+router.delete("/unavailable-dates/:dateId", authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const dateId = getId(req.params.dateId);
+
+    const dateRecord = await prisma.unavailableDate.findUnique({
+      where: { id: dateId },
+      include: {
+        bookingProfile: true
+      }
+    });
+
+    if (!dateRecord) {
+      return res.status(404).json({ error: "Date not found" });
+    }
+
+    if (dateRecord.bookingProfile?.userId !== req.userId) {
+      return res.status(403).json({ error: "Not authorized" });
+    }
+
+    await prisma.unavailableDate.delete({ where: { id: dateId } });
+
+    res.json({ message: "Date removed" });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to remove date" });
+  }
+});
+
+// Get unavailable dates for public view
+router.get("/public/:publicId/unavailable-dates", async (req: Request, res: Response) => {
+  try {
+    const publicId = getId(req.params.publicId);
+    
+    // Get profile to get its ID
+    const profile = await prisma.bookingProfile.findUnique({
+      where: { publicId },
+      select: { id: true }
+    });
+
+    if (!profile) {
+      return res.status(404).json({ error: "Booking profile not found" });
+    }
+
+    // Get both manually blocked dates and already booked dates
+    const [unavailableDates, bookings] = await Promise.all([
+      prisma.unavailableDate.findMany({
+        where: { bookingProfileId: profile.id },
+        select: { date: true }
+      }),
+      prisma.booking.findMany({
+        where: { bookingProfileId: profile.id },
+        select: { date: true }
+      })
+    ]);
+
+    const dateStrings = [
+      ...unavailableDates.map(d => d.date.toISOString().split('T')[0]),
+      ...bookings.map(b => b.date.toISOString().split('T')[0])
+    ];
+
+    // Remove duplicates
+    const uniqueDates = [...new Set(dateStrings)];
+    
+    res.json({ dates: uniqueDates });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to get unavailable dates" });
+  }
+});
+
+// Create a booking (public endpoint)
+router.post(
+  "/create",
+  [
+    body("bookingProfileId").isString().notEmpty().withMessage("Profile ID is required"),
+    body("date").isString().notEmpty().withMessage("Valid date is required"),
+    body("customerName").trim().notEmpty().withMessage("Customer name is required"),
+    body("customerPhone").trim().notEmpty().withMessage("Customer phone is required"),
+    body("notes").optional().trim(),
+  ],
+  async (req: Request, res: Response) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const { bookingProfileId, date, customerName, customerPhone, notes } = req.body;
+      
+      // Ensure date is treated as a UTC date at midnight to avoid timezone issues
+      const bookingDate = new Date(date);
+      bookingDate.setUTCHours(0, 0, 0, 0);
+
+      // Verify the booking profile exists
+      const profile = await prisma.bookingProfile.findUnique({
+        where: { id: bookingProfileId }
+      });
+
+      if (!profile) {
+        return res.status(404).json({ error: "Booking profile not found" });
+      }
+
+      // Check if the date is unavailable (manually blocked)
+      const unavailableDate = await prisma.unavailableDate.findFirst({
+        where: {
+          bookingProfileId: bookingProfileId,
+          date: bookingDate
+        }
+      });
+
+      if (unavailableDate) {
+        return res.status(400).json({ error: "Selected date is unavailable" });
+      }
+
+      // Check if there's already a booking for this profile on this date
+      const existingBooking = await prisma.booking.findFirst({
+        where: {
+          bookingProfileId: bookingProfileId,
+          date: bookingDate
+        }
+      });
+
+      if (existingBooking) {
+        return res.status(400).json({ error: "Selected date is already booked" });
+      }
+
+      const booking = await prisma.booking.create({
+        data: {
+          bookingProfileId: bookingProfileId,
+          date: bookingDate,
+          customerName,
+          customerPhone,
+          notes: notes || null,
+        }
+      });
+
+      res.status(201).json({ booking });
+    } catch (error) {
+      res.status(500).json({ 
+        error: "Failed to create booking",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  }
+);
+
+// Get bookings for a profile (for host dashboard)
+router.get("/profile/:profileId", authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const profileId = getId(req.params.profileId);
+
+    // Verify the profile belongs to the user
+    const profile = await prisma.bookingProfile.findFirst({
+      where: {
+        id: profileId,
+        userId: req.userId
+      }
+    });
+
+    if (!profile) {
+      return res.status(404).json({ error: "Booking profile not found" });
+    }
+
+    const bookings = await prisma.booking.findMany({
+      where: {
+        bookingProfileId: profileId
+      },
+      include: {
+        bookingProfile: {
+          select: {
+            name: true,
+            publicId: true
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+
+    res.json({ bookings });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to get bookings" });
+  }
+});
+
+// Delete a booking profile
+router.delete("/:id", authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const id = getId(req.params.id);
+
+    const existing = await prisma.bookingProfile.findFirst({
+      where: {
+        id,
+        userId: req.userId
+      }
+    });
+
+    if (!existing) {
+      return res.status(404).json({ error: "Booking profile not found" });
+    }
+
+    await prisma.bookingProfile.delete({ where: { id } });
+
+    res.json({ message: "Booking profile deleted" });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to delete booking profile" });
+  }
+});
+
+// Get all bookings for all profiles belonging to the user
+router.get("/all-bookings", authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const bookings = await prisma.booking.findMany({
+      where: {
+        bookingProfile: {
+          userId: req.userId
+        }
+      },
+      include: {
+        bookingProfile: {
+          select: {
+            name: true,
+            publicId: true
+          }
+        }
+      },
+      orderBy: {
+        date: 'desc'
+      }
+    });
+
+    res.json({ bookings });
+  } catch (error) {
+    console.error("Get all bookings error:", error);
+    res.status(500).json({ error: "Failed to get bookings" });
+  }
+});
+
+export default router;

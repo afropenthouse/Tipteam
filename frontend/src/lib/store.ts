@@ -28,10 +28,22 @@ import {
   initializePayment,
   verifyPayment,
   getBanks,
+  listBookingProfiles,
+  getBookingProfile,
+  getPublicBookingProfile,
+  createBookingProfile,
+  updateBookingProfile,
+  uploadBookingPictures,
+  deleteBookingPicture,
+  addUnavailableDates,
+  removeUnavailableDate,
+  getUnavailableDates,
+  deleteBookingProfile,
+  getBookingShareUrl,
 } from "./api";
-import type { User, Business, Feedback, Withdrawal } from "./api";
+import type { User, Business, Feedback, Withdrawal, BookingProfile, PublicBookingProfile } from "./api";
 
-export type { User, Business, Feedback, Withdrawal };
+export type { User, Business, Feedback, Withdrawal, BookingProfile, PublicBookingProfile };
 
 export { 
   signUp,
@@ -61,6 +73,18 @@ export {
   initializePayment,
   verifyPayment,
   getBanks,
+  listBookingProfiles,
+  getBookingProfile,
+  getPublicBookingProfile,
+  createBookingProfile,
+  updateBookingProfile,
+  uploadBookingPictures,
+  deleteBookingPicture,
+  addUnavailableDates,
+  removeUnavailableDate,
+  getUnavailableDates,
+  deleteBookingProfile,
+  getBookingShareUrl,
 };
 
 export function useStore<T>(reader: () => T): T {

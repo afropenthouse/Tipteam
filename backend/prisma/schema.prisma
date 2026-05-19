@@ -19,6 +19,7 @@ model User {
   businesses    Business[]
   subscriptions Subscription[]
   verifications Verification[]
+  bookingProfiles BookingProfile[]
 
   @@map("users")
 }
@@ -52,6 +53,7 @@ model Business {
   feedbacks       Feedback[]
   menus           Menu[]
   withdrawals     Withdrawal[]
+  bookingProfiles BookingProfile[] @relation("BusinessBookingProfiles")
 
   @@map("businesses")
 }
@@ -116,6 +118,58 @@ model Subscription {
   user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("subscriptions")
+}
+
+model BookingProfile {
+  id          String           @id @default(uuid())
+  userId      String
+  businessId  String?          // Optional link to business
+  name        String
+  location    String
+  description String?
+  publicId    String           @unique @default(uuid())
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  business    Business?        @relation("BusinessBookingProfiles", fields: [businessId], references: [id], onDelete: SetNull)
+  pictures    BookingPicture[]
+  unavailableDates UnavailableDate[]
+  bookings    Booking[]        // Back-relation to Booking model
+}
+
+model BookingPicture {
+  id             String       @id @default(uuid())
+  bookingProfileId String
+  imageUrl       String
+  publicId       String?      // For Cloudinary
+  createdAt      DateTime     @default(now())
+  bookingProfile BookingProfile @relation(fields: [bookingProfileId], references: [id], onDelete: Cascade)
+
+  @@map("booking_pictures")
+}
+
+model UnavailableDate {
+  id             String       @id @default(uuid())
+  bookingProfileId String
+  date           DateTime
+  createdAt      DateTime     @default(now())
+  bookingProfile BookingProfile @relation(fields: [bookingProfileId], references: [id], onDelete: Cascade)
+
+  @@map("unavailable_dates")
+}
+
+model Booking {
+  id              String       @id @default(uuid())
+  bookingProfileId String
+  date            DateTime
+  customerName    String
+  customerPhone   String
+  notes           String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  bookingProfile  BookingProfile @relation(fields: [bookingProfileId], references: [id], onDelete: Cascade)
+
+  @@map("bookings")
 }
 
 enum VerificationType {

@@ -3,12 +3,18 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-export const generateToken = (userId: string): string => {
-  return jwt.sign({ userId }, process.env.JWT_SECRET!, { expiresIn: "7d" });
+export const generateToken = (userId: string, isAdmin?: boolean): string => {
+  const payload: { userId: string; isAdmin?: boolean } = { userId };
+  if (isAdmin) payload.isAdmin = true;
+  return jwt.sign(payload, process.env.JWT_SECRET!, { expiresIn: "7d" });
 };
 
-export const verifyToken = (token: string): { userId: string } => {
-  return jwt.verify(token, process.env.JWT_SECRET!) as { userId: string };
+export const generateAdminToken = (): string => {
+  return jwt.sign({ userId: "admin", isAdmin: true }, process.env.JWT_SECRET!, { expiresIn: "7d" });
+};
+
+export const verifyToken = (token: string): { userId: string; isAdmin?: boolean } => {
+  return jwt.verify(token, process.env.JWT_SECRET!) as { userId: string; isAdmin?: boolean };
 };
 
 export const generateVerificationToken = (): string => {
