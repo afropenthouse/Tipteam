@@ -81,60 +81,6 @@ export default function AdminDashboard() {
         ))}
       </div>
 
-      {/* Quick Actions */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card
-          className="cursor-pointer hover:shadow-md transition-shadow"
-          onClick={() => navigate("/admin/users")}
-        >
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
-                <Users className="h-5 w-5 text-blue-600" />
-              </div>
-              <span className="font-semibold">Manage Users</span>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">View, activate, and manage user accounts.</p>
-          </CardContent>
-        </Card>
-
-        <Card
-          className="cursor-pointer hover:shadow-md transition-shadow"
-          onClick={() => navigate("/admin/businesses")}
-        >
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
-                <Store className="h-5 w-5 text-green-600" />
-              </div>
-              <span className="font-semibold">Manage Businesses</span>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">View, edit, and delete business listings.</p>
-          </CardContent>
-        </Card>
-
-        <Card
-          className="cursor-pointer hover:shadow-md transition-shadow"
-          onClick={() => navigate("/admin/feedback")}
-        >
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-yellow-100 flex items-center justify-center">
-                <MessageSquareWarning className="h-5 w-5 text-yellow-600" />
-              </div>
-              <span className="font-semibold">Review Feedback</span>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">Monitor customer feedback and complaints.</p>
-          </CardContent>
-        </Card>
-      </div>
-
       {/* Recent Activity placeholder */}
       <Card>
         <CardHeader>

@@ -41,6 +41,7 @@ export default function AdminLogin() {
 
   return (
     <div className="grid min-h-screen">
+      
       <div className="flex items-center justify-center p-6 md:p-12">
         <Card className="w-full max-w-md">
           <CardHeader>
@@ -80,14 +81,7 @@ export default function AdminLogin() {
           </CardContent>
         </Card>
       </div>
-      <div className="hidden bg-gradient-to-br from-primary/20 via-accent/20 to-secondary/20 p-12 lg:flex lg:flex-col lg:justify-center items-center text-foreground">
-        <div className="max-w-md space-y-8">
-          <div className="text-center space-y-4">
-            <h2 className="text-4xl font-bold">Admin Dashboard</h2>
-            <p className="text-xl text-muted-foreground">Manage users, businesses, feedback and withdrawals</p>
-          </div>
-        </div>
-      </div>
+      
     </div>
   );
 }
