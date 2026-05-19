@@ -727,3 +727,7 @@ export const getAllBookings = async (): Promise<Booking[]> => {
   const { bookings } = await api.get<{ bookings: Booking[] }>("/bookings/all-bookings");
   return bookings;
 };
+
+export const deleteBooking = async (id: string): Promise<void> => {
+  await api.delete(`/bookings/appointments/${id}`);
+};

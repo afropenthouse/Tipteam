@@ -570,4 +570,32 @@ router.get("/all-bookings", authenticate, async (req: AuthRequest, res: Response
   }
 });
 
+// Delete a booking (appointment)
+router.delete("/appointments/:id", authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const id = getId(req.params.id);
+
+    const booking = await prisma.booking.findUnique({
+      where: { id },
+      include: {
+        bookingProfile: true
+      }
+    });
+
+    if (!booking) {
+      return res.status(404).json({ error: "Booking not found" });
+    }
+
+    if (booking.bookingProfile?.userId !== req.userId) {
+      return res.status(403).json({ error: "Not authorized" });
+    }
+
+    await prisma.booking.delete({ where: { id } });
+
+    res.json({ message: "Booking deleted" });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to delete booking" });
+  }
+});
+
 export default router;

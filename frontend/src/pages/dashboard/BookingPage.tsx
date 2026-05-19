@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,18 +6,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { ChevronLeft, Calendar as CalendarIcon, Upload, X, Copy, ExternalLink, Plus, Edit, Trash2, Share2, Eye, MapPin, Phone, User, Clock, MessageSquare, Loader2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Calendar as CalendarIcon, Upload, X, Copy, Plus, Edit, Trash2, Share2, Eye, MapPin, Phone, User, Clock, MessageSquare, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectItem, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { listBookingProfiles, createBookingProfile, updateBookingProfile, deleteBookingProfile, uploadBookingPictures, addUnavailableDates, getBookingShareUrl, getBookingsForProfile, listBusinesses, getAllBookings } from "@/lib/api";
-import type { BookingProfile, Booking, Business } from "@/lib/api";
+import { listBookingProfiles, createBookingProfile, updateBookingProfile, deleteBookingProfile, uploadBookingPictures, addUnavailableDates, getBookingShareUrl, getBookingsForProfile, listBusinesses, getAllBookings, deleteBooking } from "@/lib/api";
+import type { Booking, Business } from "@/lib/api";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function BookingPage() {
-  const navigate = useNavigate();
   const [profiles, setProfiles] = useState<any[]>([]);
   const [allBookings, setAllBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,6 +25,21 @@ export default function BookingPage() {
   const [bookings, setBookings] = useState<Record<string, Booking[]>>({});
   const [showBookingsDialog, setShowBookingsDialog] = useState(false);
   const [selectedProfileForBookings, setSelectedProfileForBookings] = useState<any>(null);
+  
+  // Delete confirmation
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmationText, setDeleteConfirmationText] = useState("");
+  const [itemToDelete, setItemToDelete] = useState<{ id: string, type: 'profile' | 'booking', name: string } | null>(null);
+
+  // Helper to format UTC date strings correctly for local display
+  const formatUTCDate = (dateStr: string, formatStr: string) => {
+    // Append Z if not present to ensure UTC interpretation
+    const date = new Date(dateStr.endsWith('Z') ? dateStr : `${dateStr}Z`);
+    // Adjust for timezone offset to get the original date as intended
+    const userTimezoneOffset = date.getTimezoneOffset() * 60000;
+    const adjustedDate = new Date(date.getTime() + userTimezoneOffset);
+    return format(adjustedDate, formatStr);
+  };
   
    // Form data
    const [name, setName] = useState("");
@@ -143,7 +156,7 @@ export default function BookingPage() {
  
      setLoading(true);
      try {
-       let profile;
+       let profile: any;
        if (editingProfile) {
          profile = await updateBookingProfile(editingProfile.id, {
            name,
@@ -201,18 +214,42 @@ export default function BookingPage() {
      setShowModal(true);
    };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this booking profile?")) return;
-    
-    try {
-      await deleteBookingProfile(id);
-      toast({ title: "Booking profile deleted" });
-      fetchProfiles();
-      fetchAllBookings();
-    } catch (error: any) {
-      toast({ title: "Failed to delete", description: error.message, variant: "destructive" });
-    }
-  };
+   const handleDelete = (profile: any) => {
+     setItemToDelete({ id: profile.id, type: 'profile', name: profile.name });
+     setDeleteConfirmationText("");
+     setShowDeleteModal(true);
+   };
+
+   const handleDeleteBooking = (booking: any) => {
+     setItemToDelete({ id: booking.id, type: 'booking', name: `Appointment for ${booking.customerName}` });
+     setDeleteConfirmationText("");
+     setShowDeleteModal(true);
+   };
+
+   const confirmDelete = async () => {
+     if (deleteConfirmationText !== "DELETE" || !itemToDelete) return;
+     
+     try {
+       if (itemToDelete.type === 'profile') {
+         await deleteBookingProfile(itemToDelete.id);
+         toast({ title: "Booking profile deleted" });
+         fetchProfiles();
+       } else {
+         await deleteBooking(itemToDelete.id);
+         toast({ title: "Appointment deleted" });
+         fetchAllBookings();
+         // If we're in the profile bookings dialog, refresh that too
+         if (selectedProfileForBookings) {
+           fetchBookingsForProfile(selectedProfileForBookings.id);
+         }
+       }
+       setShowDeleteModal(false);
+       setItemToDelete(null);
+       setDeleteConfirmationText("");
+     } catch (error: any) {
+       toast({ title: "Failed to delete", description: error.message, variant: "destructive" });
+     }
+   };
 
   const copyShareLink = (publicId: string) => {
     const url = getBookingShareUrl(publicId);
@@ -618,7 +655,7 @@ export default function BookingPage() {
                         variant="ghost"
                         size="icon"
                         className="h-9 w-9 text-destructive hover:bg-destructive/10 hover:text-destructive transition-colors"
-                        onClick={() => handleDelete(profile.id)}
+                        onClick={() => handleDelete(profile)}
                         title="Delete Profile"
                       >
                         <Trash2 className="h-4.5 w-4.5" />
@@ -699,13 +736,13 @@ export default function BookingPage() {
                       <div className="grid md:grid-cols-12">
                         <div className="md:col-span-2 bg-primary/5 p-4 flex flex-col items-center justify-center border-r">
                           <span className="text-xs font-bold text-primary uppercase">
-                            {format(new Date(booking.date), "EEE")}
+                            {formatUTCDate(booking.date, "EEE")}
                           </span>
                           <span className="text-2xl font-black text-primary">
-                            {format(new Date(booking.date), "dd")}
+                            {formatUTCDate(booking.date, "dd")}
                           </span>
                           <span className="text-xs font-medium text-muted-foreground">
-                            {format(new Date(booking.date), "MMM 'yy")}
+                            {formatUTCDate(booking.date, "MMM 'yy")}
                           </span>
                         </div>
                         
@@ -726,9 +763,20 @@ export default function BookingPage() {
                                   </div>
                                 </div>
                                 
-                                <Badge variant="secondary" className="font-medium text-[10px] h-fit">
-                                  {booking.bookingProfile.name}
-                                </Badge>
+                                <div className="flex flex-col items-end gap-2">
+                                  <Badge variant="secondary" className="font-medium text-[10px] h-fit">
+                                    {booking.bookingProfile.name}
+                                  </Badge>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                                    onClick={() => handleDeleteBooking(booking)}
+                                    title="Delete Appointment"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </div>
                               </div>
 
                               {booking.notes && (
@@ -847,13 +895,13 @@ export default function BookingPage() {
                               {/* Date Column */}
                               <div className="md:col-span-3 bg-primary/5 p-4 flex flex-col items-center justify-center border-r">
                                 <span className="text-xs font-bold text-primary uppercase">
-                                  {format(new Date(booking.date), "EEE")}
+                                  {formatUTCDate(booking.date, "EEE")}
                                 </span>
                                 <span className="text-3xl font-black text-primary">
-                                  {format(new Date(booking.date), "dd")}
+                                  {formatUTCDate(booking.date, "dd")}
                                 </span>
                                 <span className="text-xs font-medium text-muted-foreground">
-                                  {format(new Date(booking.date), "MMM yyyy")}
+                                  {formatUTCDate(booking.date, "MMM yyyy")}
                                 </span>
                               </div>
 
@@ -886,6 +934,17 @@ export default function BookingPage() {
                                   </div>
 
                                   <div className="flex flex-col items-end gap-2 text-right">
+                                    <div className="flex gap-1 mb-1">
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                                        onClick={() => handleDeleteBooking(booking)}
+                                        title="Delete Appointment"
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </div>
                                     <Badge variant="outline" className="font-mono text-[10px]">
                                       ID: {booking.id.slice(0, 8)}
                                     </Badge>
@@ -912,6 +971,51 @@ export default function BookingPage() {
               Close View
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Modal */}
+      <Dialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-destructive flex items-center gap-2">
+              <Trash2 className="h-5 w-5" />
+              Confirm Deletion
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete <strong>{itemToDelete?.name}</strong>? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <p className="text-sm font-medium">
+              Please type <span className="font-bold text-destructive">DELETE</span> to confirm:
+            </p>
+            <Input
+              value={deleteConfirmationText}
+              onChange={(e) => setDeleteConfirmationText(e.target.value)}
+              placeholder="Type DELETE here"
+              className="border-destructive/30 focus-visible:ring-destructive"
+            />
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowDeleteModal(false);
+                setItemToDelete(null);
+                setDeleteConfirmationText("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDelete}
+              disabled={deleteConfirmationText !== "DELETE"}
+            >
+              Delete Permanently
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
