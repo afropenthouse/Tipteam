@@ -93,4 +93,16 @@ router.patch("/:id/toggle", adminAuth, async (req: AdminRequest, res: Response) 
   }
 });
 
+// Delete user
+router.delete("/:id", adminAuth, async (req: AdminRequest, res: Response) => {
+  try {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    await prisma.user.delete({ where: { id } });
+    res.json({ message: "User deleted" });
+  } catch (error) {
+    console.error("Delete user error:", error);
+    res.status(500).json({ error: "Failed to delete user" });
+  }
+});
+
 export default router;

@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Search, Trash2, Star, MessageCircle, Phone, AlertTriangle } from "lucide-react";
+import { useState } from "react";
+import { Search, Trash2, Star, Phone, AlertTriangle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import { adminApi } from "@/lib/admin";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -22,6 +30,8 @@ export default function AdminFeedback() {
   const [businessFilter, setBusinessFilter] = useState("");
   const [ratingFilter, setRatingFilter] = useState("");
   const [page, setPage] = useState(1);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState("");
   const limit = 20;
 
   const { data, isLoading } = useQuery({
@@ -33,6 +43,8 @@ export default function AdminFeedback() {
     mutationFn: (id: string) => adminApi.deleteFeedback(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-feedback"] });
+      setDeleteId(null);
+      setDeleteConfirm("");
       toast({ title: "Feedback deleted", description: "Feedback entry removed successfully." });
     },
     onError: (err: any) => {
@@ -43,6 +55,12 @@ export default function AdminFeedback() {
   const feedback = data?.feedback ?? [];
   const total = data?.total ?? 0;
   const pages = data?.pages ?? 1;
+
+  const handleDelete = () => {
+    if (deleteConfirm.toLowerCase() === "delete" && deleteId) {
+      deleteMutation.mutate(deleteId);
+    }
+  };
 
   const renderStars = (rating?: number | null) => {
     if (!rating) return <span className="text-muted-foreground">No rating</span>;
@@ -145,12 +163,8 @@ export default function AdminFeedback() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="text-destructive"
-                              onClick={() => {
-                                if (window.confirm("Delete this feedback?")) {
-                                  deleteMutation.mutate(f.id);
-                                }
-                              }}
+                              className="text-destructive hover:bg-destructive/10"
+                              onClick={() => setDeleteId(f.id)}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -192,6 +206,37 @@ export default function AdminFeedback() {
           )}
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Modal */}
+      <Dialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-destructive">Confirm Deletion</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this feedback entry?
+              Please type <span className="font-bold text-foreground">delete</span> to confirm.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Input
+              placeholder='Type "delete" here'
+              value={deleteConfirm}
+              onChange={(e) => setDeleteConfirm(e.target.value)}
+              className="border-destructive/30 focus-visible:ring-destructive"
+            />
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="ghost" onClick={() => setDeleteId(null)}>Cancel</Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleDelete}
+              disabled={deleteConfirm.toLowerCase() !== "delete" || deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? "Deleting..." : "Delete Feedback"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

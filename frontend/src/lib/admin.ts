@@ -117,6 +117,24 @@ class AdminApi {
     return this.delete<{ message: string }>(`/businesses/${id}`);
   }
 
+  // Transactions
+  getTransactions(params?: { page?: number; limit?: number; search?: string }) {
+    const query = new URLSearchParams();
+    if (params) {
+      if (params.page) query.set("page", String(params.page));
+      if (params.limit) query.set("limit", String(params.limit));
+      if (params.search) query.set("search", params.search);
+    }
+    const qs = query.toString();
+    return this.get<{ transactions: any[]; total: number; page: number; pages: number }>(
+      `/transactions${qs ? "?" + qs : ""}`
+    );
+  }
+
+  deleteUser(id: string) {
+    return this.delete<{ message: string }>(`/users/${id}`);
+  }
+
   // Feedback
   getFeedback(params?: { page?: number; limit?: number; businessId?: string; rating?: number; search?: string }) {
     const query = new URLSearchParams();

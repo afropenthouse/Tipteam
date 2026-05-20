@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, Store, Star, MessageSquareWarning, Wallet, Settings, LogOut } from "lucide-react";
+import { LayoutDashboard, Users, Store, MessageSquareWarning, Receipt, LogOut } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   Sidebar,
@@ -25,9 +25,10 @@ function useAdminAuth() {
 }
 
 const mainItems = [
-  { title: "Dashboard", url: "/admin/dashboard", icon: LayoutDashboard, end: true },
+  { title: "Overview", url: "/admin/dashboard", icon: LayoutDashboard, end: true },
   { title: "Users", url: "/admin/users", icon: Users },
   { title: "Businesses", url: "/admin/businesses", icon: Store },
+  { title: "Transactions", url: "/admin/transactions", icon: Receipt },
   { title: "Feedback", url: "/admin/feedback", icon: MessageSquareWarning },
 ];
 

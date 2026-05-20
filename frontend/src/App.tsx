@@ -35,6 +35,7 @@ import AdminFeedback from "./pages/admin/Feedback.tsx";
 import UserDetail from "./pages/admin/UserDetail.tsx";
 import AdminDashboardLayout from "./components/admin/AdminDashboardLayout.tsx";
 import PublicBookingPage from "./pages/Book.tsx";
+import AdminTransactions from "./pages/admin/Transactions.tsx";
 
 const queryClient = new QueryClient();
 
@@ -85,6 +86,7 @@ const App = () => (
             <Route path="users/:id" element={<UserDetail />} />
             <Route path="businesses" element={<AdminBusinesses />} />
             <Route path="businesses/:id" element={<AdminDashboard />} />
+            <Route path="transactions" element={<AdminTransactions />} />
             <Route path="feedback" element={<AdminFeedback />} />
             
           </Route>

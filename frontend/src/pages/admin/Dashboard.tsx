@@ -1,22 +1,11 @@
-import { useState, useEffect } from "react";
 import {
   Users,
   Store,
-  Star,
   MessageSquareWarning,
   CreditCard,
   TrendingUp,
 } from "lucide-react";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { adminApi } from "@/lib/admin";
 import { useQuery } from "@tanstack/react-query";
@@ -53,7 +42,7 @@ export default function AdminDashboard() {
     <div className="space-y-8">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Dashboard Overview</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Overview</h1>
           <p className="text-sm text-muted-foreground">Platform-wide statistics at a glance.</p>
         </div>
       </div>
@@ -74,39 +63,6 @@ export default function AdminDashboard() {
           </Card>
         ))}
       </div>
-
-      {/* Recent Activity placeholder */}
-      <Card>
-        <CardHeader>
-          <span className="font-semibold">Recent Activity</span>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="space-y-3">
-              {[...Array(5)].map((_, i) => (
-                <Skeleton key={i} className="h-12 w-full" />
-              ))}
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>vf
-                <TableRow>
-                  <TableHead>Event</TableHead>
-                  <TableHead>Details</TableHead>
-                  <TableHead className="text-right">Time</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow>
-                  <TableCell className="font-medium">Dashboard refreshed</TableCell>
-                  <TableCell className="text-muted-foreground">Viewed platform overview</TableCell>
-                  <TableCell className="text-right text-muted-foreground">Just now</TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
     </div>
   );
 }
