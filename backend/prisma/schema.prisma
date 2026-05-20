@@ -127,6 +127,7 @@ model BookingProfile {
   name        String
   location    String
   description String?
+  services    String[]         @default([]) // List of services offered
   publicId    String           @unique @default(uuid())
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt

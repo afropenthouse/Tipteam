@@ -542,6 +542,7 @@ export type BookingProfile = {
   name: string;
   location: string;
   description?: string;
+  services: string[];
   publicId: string;
   createdAt: string;
   updatedAt: string;
@@ -559,6 +560,7 @@ export type PublicBookingProfile = {
   name: string;
   location: string;
   description?: string;
+  services: string[];
   publicId: string;
   createdAt: string;
   updatedAt: string;
@@ -612,6 +614,7 @@ export const createBookingProfile = async (data: {
   name: string;
   location: string;
   description?: string;
+  services?: string[];
   businessId?: string;
 }): Promise<BookingProfile> => {
   const { profile } = await api.post<{ profile: BookingProfile }>("/bookings", data);

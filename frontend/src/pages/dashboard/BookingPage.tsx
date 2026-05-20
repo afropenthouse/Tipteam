@@ -14,7 +14,6 @@ import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { listBookingProfiles, createBookingProfile, updateBookingProfile, deleteBookingProfile, uploadBookingPictures, addUnavailableDates, getBookingShareUrl, getBookingsForProfile, listBusinesses, getAllBookings, deleteBooking } from "@/lib/api";
 import type { Booking, Business } from "@/lib/api";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function BookingPage() {
   const [profiles, setProfiles] = useState<any[]>([]);
@@ -25,6 +24,7 @@ export default function BookingPage() {
   const [bookings, setBookings] = useState<Record<string, Booking[]>>({});
   const [showBookingsDialog, setShowBookingsDialog] = useState(false);
   const [selectedProfileForBookings, setSelectedProfileForBookings] = useState<any>(null);
+  const [currentStep, setCurrentStep] = useState(1);
   
   // Delete confirmation
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -50,10 +50,11 @@ export default function BookingPage() {
    const [existingPictureUrls, setExistingPictureUrls] = useState<string[]>([]);
    const [businesses, setBusinesses] = useState<Business[]>([]);
    const [selectedBusinessId, setSelectedBusinessId] = useState<string>("none");
+   const [hostServices, setHostServices] = useState<string[]>([]);
+   const [newServiceInput, setNewServiceInput] = useState("");
    
    // Unavailable dates
   const [unavailableDates, setUnavailableDates] = useState<Date[]>([]);
-  const [selectedDates, setSelectedDates] = useState<Date[] | undefined>(undefined);
 
    useEffect(() => {
      fetchProfiles();
@@ -74,6 +75,11 @@ export default function BookingPage() {
      try {
        const data = await listBusinesses();
        setBusinesses(data);
+       if (data.length > 0 && selectedBusinessId === "none") {
+         setSelectedBusinessId(data[0].id);
+         setName(data[0].name);
+         setLocation(data[0].address);
+       }
      } catch (error: any) {
        console.error("Failed to load businesses:", error);
      }
@@ -108,8 +114,10 @@ export default function BookingPage() {
       setPicturePreviews([]);
       setExistingPictureUrls([]);
       setUnavailableDates([]);
-      setSelectedDates(undefined);
-      setSelectedBusinessId("none");
+      setHostServices([]);
+      setNewServiceInput("");
+      setSelectedBusinessId(businesses.length > 0 ? businesses[0].id : "none");
+      setCurrentStep(1);
     };
 
   const handlePictureUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -135,15 +143,8 @@ export default function BookingPage() {
     setPicturePreviews(picturePreviews.filter((_, i) => i !== index));
   };
 
-   const handleAddDates = () => {
-     if (selectedDates && selectedDates.length > 0) {
-       setUnavailableDates([...unavailableDates, ...selectedDates]);
-       setSelectedDates(undefined);
-     }
-   };
-
-  const removeUnavailableDate = (index: number) => {
-    setUnavailableDates(unavailableDates.filter((_, i) => i !== index));
+  const removeUnavailableDate = (dateToRemove: Date) => {
+    setUnavailableDates(unavailableDates.filter((date) => date.getTime() !== dateToRemove.getTime()));
   };
 
   const formatDateForAPI = (date: Date) => format(date, "yyyy-MM-dd");
@@ -162,6 +163,7 @@ export default function BookingPage() {
            name,
            location,
            description: description || undefined,
+           services: hostServices,
            businessId: selectedBusinessId === "none" ? undefined : selectedBusinessId
          });
        } else {
@@ -169,6 +171,7 @@ export default function BookingPage() {
            name,
            location,
            description: description || undefined,
+           services: hostServices,
            businessId: selectedBusinessId === "none" ? undefined : selectedBusinessId
          });
  
@@ -207,10 +210,12 @@ export default function BookingPage() {
      setName(profile.name);
      setLocation(profile.location);
      setDescription(profile.description || "");
+     setHostServices(profile.services || []);
      setExistingPictureUrls(profile.pictures?.map((p: any) => p.imageUrl) || []);
      const dates = profile.unavailableDates?.map((d: any) => new Date(d.date)) || [];
      setUnavailableDates(dates);
      setSelectedBusinessId(profile.businessId || "none");
+     setCurrentStep(1);
      setShowModal(true);
    };
 
@@ -285,235 +290,278 @@ export default function BookingPage() {
                 New Booking Page
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>{editingProfile ? "Edit Booking Page" : "Create Booking Page"}</DialogTitle>
-              </DialogHeader>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0">
+              <div className="p-6 border-b sticky top-0 bg-background z-10">
+                <DialogHeader>
+                  <DialogTitle className="text-2xl font-black">
+                    {editingProfile ? "Edit Booking Page" : "Create Booking Page"}
+                  </DialogTitle>
+                  <div className="flex items-center gap-2 mt-2">
+                    <div className={`h-2 flex-1 rounded-full ${currentStep >= 1 ? 'bg-primary' : 'bg-muted'}`} />
+                    <div className={`h-2 flex-1 rounded-full ${currentStep >= 2 ? 'bg-primary' : 'bg-muted'}`} />
+                  </div>
+                  <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider text-muted-foreground mt-1">
+                    <span>Business & Images</span>
+                    <span>Unavailable Dates</span>
+                  </div>
+                </DialogHeader>
+              </div>
               
-              <div className="grid gap-6 md:grid-cols-2 mt-4">
-                {/* Form Section */}
-                <div className="space-y-6">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Business Details</CardTitle>
-                    </CardHeader>
-                     <CardContent className="space-y-4">
-                       <div className="space-y-2">
-                          <Label>Associated Business</Label>
-                          <Select
-                            value={selectedBusinessId}
-                            onValueChange={(val) => {
-                              setSelectedBusinessId(val);
-                              if (val !== "none") {
-                                const business = businesses.find(b => b.id === val);
-                                if (business) {
-                                  setName(business.name);
+              <div className="p-6">
+                {currentStep === 1 ? (
+                  <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label className="text-base font-bold">Business</Label>
+                        <Select
+                          value={selectedBusinessId}
+                          onValueChange={(val) => {
+                            setSelectedBusinessId(val);
+                            const business = businesses.find(b => b.id === val);
+                            if (business) {
+                              setName(business.name);
+                              setLocation(business.address);
+                            }
+                          }}
+                        >
+                          <SelectTrigger className="h-12 border-2 focus:ring-primary">
+                            <SelectValue placeholder="Select a business" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {businesses.map(business => (
+                              <SelectItem key={business.id} value={business.id}>
+                                {business.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-base font-bold">Location <span className="text-red-500">*</span></Label>
+                        <div className="relative">
+                          <MapPin className="absolute left-3 top-3.5 h-5 w-5 text-muted-foreground" />
+                          <Input
+                            placeholder="e.g., 123 Main St, Lagos"
+                            value={location}
+                            onChange={(e) => setLocation(e.target.value)}
+                            className="h-12 pl-10 border-2 focus:ring-primary"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-base font-bold">Description</Label>
+                        <Textarea
+                          placeholder="Tell customers about your business..."
+                          value={description}
+                          onChange={(e) => setDescription(e.target.value)}
+                          rows={3}
+                          className="border-2 focus:ring-primary resize-none"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-base font-bold">Services Offered</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="e.g., Haircut, Massage, Consulting"
+                            value={newServiceInput}
+                            onChange={(e) => setNewServiceInput(e.target.value)}
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                if (newServiceInput.trim()) {
+                                  setHostServices([...hostServices, newServiceInput.trim()]);
+                                  setNewServiceInput("");
                                 }
                               }
                             }}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a business" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {businesses.map(business => (
-                                <SelectItem key={business.id} value={business.id}>
-                                  {business.name}
-                                </SelectItem>
-                              ))}
-                              <SelectItem value="none">
-                                None
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                       {selectedBusinessId === "none" && (
-                         <div className="space-y-2">
-                           <Label>Business Name <span className="text-red-500">*</span></Label>
-                           <Input
-                             placeholder="e.g., John's Salon"
-                             value={name}
-                             onChange={(e) => setName(e.target.value)}
-                           />
-                         </div>
-                       )}
-
-                       <div className="space-y-2">
-                         <Label>Location <span className="text-red-500">*</span></Label>
-                         <Input
-                           placeholder="e.g., 123 Main St, Lagos"
-                           value={location}
-                           onChange={(e) => setLocation(e.target.value)}
-                         />
-                       </div>
-                       <div className="space-y-2">
-                         <Label>Description</Label>
-                         <Textarea
-                           placeholder="Tell customers about your business..."
-                           value={description}
-                           onChange={(e) => setDescription(e.target.value)}
-                           rows={3}
-                         />
-                       </div>
-                     </CardContent>
-                   </Card>
-
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Business Pictures</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        <Label htmlFor="pictures-modal" className="cursor-pointer">
-                          <div className="border-2 border-dashed rounded-lg p-6 text-center hover:bg-muted/50 transition-colors">
-                            <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                            <span className="text-sm text-muted-foreground">
-                              Click to upload images (max 10)
-                            </span>
-                          </div>
-                          <input
-                            id="pictures-modal"
-                            type="file"
-                            accept="image/*"
-                            multiple
-                            onChange={handlePictureUpload}
-                            className="hidden"
+                            className="h-11 border-2 focus:ring-primary"
                           />
-                        </Label>
-
-                        {[...existingPictureUrls, ...picturePreviews].length > 0 && (
-                          <div className="grid grid-cols-3 gap-2">
-                            {existingPictureUrls.map((url, index) => (
-                              <div key={`existing-${index}`} className="relative">
-                                <img src={url} alt={`Existing ${index + 1}`} className="w-full h-24 object-cover rounded-lg" />
-                              </div>
-                            ))}
-                            {picturePreviews.map((preview, index) => (
-                              <div key={`new-${index}`} className="relative">
-                                <img src={preview} alt={`Preview ${index + 1}`} className="w-full h-24 object-cover rounded-lg" />
+                          <Button 
+                            type="button" 
+                            variant="secondary" 
+                            className="h-11"
+                            onClick={() => {
+                              if (newServiceInput.trim()) {
+                                setHostServices([...hostServices, newServiceInput.trim()]);
+                                setNewServiceInput("");
+                              }
+                            }}
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        {hostServices.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mt-2 p-3 bg-muted/30 rounded-xl border border-dashed">
+                            {hostServices.map((service, index) => (
+                              <Badge key={index} variant="secondary" className="pl-3 pr-1 py-1 flex items-center gap-1 group">
+                                {service}
                                 <Button
-                                  variant="destructive"
+                                  variant="ghost"
                                   size="icon"
-                                  className="absolute -top-2 -right-2 h-6 w-6"
-                                  onClick={() => removePicture(index)}
+                                  className="h-4 w-4 p-0 hover:bg-destructive hover:text-destructive-foreground rounded-full"
+                                  onClick={() => setHostServices(hostServices.filter((_, i) => i !== index))}
                                 >
-                                  <X className="h-3 w-3" />
+                                  <X className="h-2.5 w-2.5" />
                                 </Button>
-                              </div>
+                              </Badge>
                             ))}
                           </div>
                         )}
+                        <p className="text-[10px] text-muted-foreground font-medium italic">Add services so customers can choose what they need.</p>
                       </div>
-                    </CardContent>
-                  </Card>
 
-                   <Card>
-                     <CardHeader>
-                       <CardTitle>Unavailable Dates</CardTitle>
-                     </CardHeader>
-                     <CardContent className="space-y-4">
-                       <div className="space-y-2">
-                         <Label>Select Dates (click multiple dates)</Label>
-                         <Popover>
-                           <PopoverTrigger asChild>
-                             <Button variant="outline" className="w-full justify-start text-left">
-                               <CalendarIcon className="mr-2 h-4 w-4" />
-                               {selectedDates && selectedDates.length > 0 ? (
-                                 `${selectedDates.length} date${selectedDates.length > 1 ? 's' : ''} selected`
-                               ) : (
-                                 <span>Pick dates</span>
-                               )}
-                             </Button>
-                           </PopoverTrigger>
-                           <PopoverContent className="w-auto p-0" align="start">
-                             <Calendar
-                               initialFocus
-                               mode="multiple"
-                               defaultMonth={selectedDates?.[0]}
-                               selected={selectedDates}
-                               onSelect={setSelectedDates}
-                               numberOfMonths={2}
-                             />
-                           </PopoverContent>
-                         </Popover>
-                         <Button
-                           size="sm"
-                           onClick={handleAddDates}
-                           disabled={!selectedDates || selectedDates.length === 0}
-                         >
-                           Add {selectedDates?.length || 0} Date{selectedDates?.length !== 1 ? 's' : ''}
-                         </Button>
-                       </div>
-
-                       {unavailableDates.length > 0 && (
-                         <div className="space-y-2">
-                           <Label>Selected Unavailable Dates ({unavailableDates.length})</Label>
-                           <div className="max-h-32 overflow-y-auto border rounded-lg p-2 space-y-1">
-                             {unavailableDates.map((date, index) => (
-                               <div key={index} className="flex items-center justify-between text-sm">
-                                 <span>{format(date, "EEE, MMM dd, yyyy")}</span>
-                                 <Button
-                                   variant="ghost"
-                                   size="sm"
-                                   onClick={() => removeUnavailableDate(index)}
-                                 >
-                                   <X className="h-3 w-3" />
-                                 </Button>
-                               </div>
-                             ))}
-                           </div>
-                         </div>
-                       )}
-                     </CardContent>
-                   </Card>
-
-                  <Button 
-                    className="w-full" 
-                    onClick={handleSave}
-                    disabled={loading}
-                  >
-                    {loading ? "Saving..." : editingProfile ? "Save Changes" : "Create Booking Page"}
-                  </Button>
-                </div>
-
-                {/* Preview Section */}
-                <div className="space-y-4">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Preview</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {name || location || description ? (
-                        <div className="space-y-4">
-                          {picturePreviews.length > 0 && (
-                            <div className="grid grid-cols-2 gap-2">
-                              {picturePreviews.slice(0, 4).map((preview, index) => (
-                                <img
-                                  key={index}
-                                  src={preview}
-                                  alt={`Preview ${index + 1}`}
-                                  className="w-full h-32 object-cover rounded-lg"
-                                />
-                              ))}
+                      <div className="space-y-2">
+                        <Label className="text-base font-bold">Business Pictures</Label>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                          <Label htmlFor="pictures-modal" className="cursor-pointer">
+                            <div className="border-2 border-dashed rounded-xl aspect-square flex flex-col items-center justify-center hover:bg-primary/5 hover:border-primary/50 transition-all group">
+                              <div className="p-2 bg-primary/10 rounded-full group-hover:scale-110 transition-transform">
+                                <Upload className="h-6 w-6 text-primary" />
+                              </div>
+                              <span className="text-[10px] font-bold uppercase mt-2 text-muted-foreground">Add Photo</span>
                             </div>
-                          )}
-                          <div>
-                            <h3 className="font-bold text-lg">{name || "Business Name"}</h3>
-                            <p className="text-sm text-muted-foreground">{location || "Location"}</p>
-                            {description && (
-                              <p className="mt-2 text-sm">{description}</p>
-                            )}
+                            <input
+                              id="pictures-modal"
+                              type="file"
+                              accept="image/*"
+                              multiple
+                              onChange={handlePictureUpload}
+                              className="hidden"
+                            />
+                          </Label>
+
+                          {[...existingPictureUrls, ...picturePreviews].map((url, index) => (
+                            <div key={index} className="relative aspect-square rounded-xl overflow-hidden group border-2">
+                              <img src={url} alt={`Upload ${index}`} className="w-full h-full object-cover" />
+                              <button
+                                onClick={() => {
+                                  if (index < existingPictureUrls.length) {
+                                    setExistingPictureUrls(existingPictureUrls.filter((_, i) => i !== index));
+                                  } else {
+                                    removePicture(index - existingPictureUrls.length);
+                                  }
+                                }}
+                                className="absolute top-1 right-1 p-1 bg-destructive text-destructive-foreground rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground font-medium italic">Max 10 images allowed</p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                    <div className="bg-primary/5 rounded-2xl p-6 border border-primary/10">
+                      <div className="flex items-start gap-4">
+                        <div className="p-3 bg-primary/10 rounded-xl">
+                          <CalendarIcon className="h-6 w-6 text-primary" />
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-bold">Block Unavailable Dates</h3>
+                          <p className="text-sm text-muted-foreground">Select the dates you won't be available for bookings. Customers won't be able to book on these days.</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-8">
+                      <div className="space-y-4">
+                        <Label className="text-base font-bold">Select Dates</Label>
+                        <div className="border-2 rounded-2xl p-2 bg-background">
+                          <Calendar
+                            mode="multiple"
+                            selected={unavailableDates}
+                            onSelect={(dates) => setUnavailableDates(dates || [])}
+                            className="rounded-xl"
+                            numberOfMonths={1}
+                            disabled={{ before: new Date() }}
+                          />
+                        </div>
+                        <p className="text-[10px] text-muted-foreground font-medium italic">Tip: You can click multiple dates to select/deselect them.</p>
+                      </div>
+
+                      <div className="space-y-4">
+                        <Label className="text-base font-bold flex justify-between items-center">
+                          Selected Dates
+                          <Badge variant="secondary" className="font-bold">{unavailableDates.length}</Badge>
+                        </Label>
+                        
+                        {unavailableDates.length > 0 ? (
+                          <div className="grid grid-cols-1 gap-2 max-h-[300px] overflow-y-auto pr-2">
+                            {unavailableDates.sort((a, b) => a.getTime() - b.getTime()).map((date, index) => (
+                              <div key={index} className="flex items-center justify-between p-3 bg-muted/30 rounded-xl border border-muted group hover:border-primary/30 transition-colors">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-8 h-8 rounded-lg bg-background flex flex-col items-center justify-center border shadow-sm">
+                                    <span className="text-[8px] font-black uppercase text-primary leading-none">{format(date, "MMM")}</span>
+                                    <span className="text-sm font-bold leading-none">{format(date, "dd")}</span>
+                                  </div>
+                                  <span className="font-medium text-sm">{format(date, "EEEE, yyyy")}</span>
+                                </div>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full"
+                                    onClick={() => removeUnavailableDate(date)}
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                              </div>
+                            ))}
                           </div>
-                        </div>
+                        ) : (
+                          <div className="flex flex-col items-center justify-center py-12 border-2 border-dashed rounded-2xl bg-muted/10 text-muted-foreground">
+                            <CalendarIcon className="h-10 w-10 mb-2 opacity-20" />
+                            <p className="text-sm font-medium">No dates selected yet</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-6 border-t bg-muted/20 flex gap-3 sticky bottom-0 z-10">
+                {currentStep === 1 ? (
+                  <>
+                    <Button variant="ghost" className="flex-1 h-12 font-bold" onClick={() => setShowModal(false)}>
+                      Cancel
+                    </Button>
+                    <Button 
+                      className="flex-[2] h-12 font-black shadow-lg shadow-primary/20" 
+                      onClick={() => {
+                        if (!name || !location) {
+                          toast({ title: "Missing fields", description: "Business name and location are required", variant: "destructive" });
+                          return;
+                        }
+                        setCurrentStep(2);
+                      }}
+                    >
+                      Next
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button variant="outline" className="flex-1 h-12 font-bold" onClick={() => setCurrentStep(1)}>
+                      Back
+                    </Button>
+                    <Button 
+                      className="flex-[2] h-12 font-black shadow-lg shadow-primary/20" 
+                      onClick={handleSave}
+                      disabled={loading}
+                    >
+                      {loading ? (
+                        <Loader2 className="h-5 w-5 animate-spin" />
                       ) : (
-                        <div className="text-center py-8 text-muted-foreground">
-                          <p>Your booking page preview will appear here</p>
-                        </div>
+                        editingProfile ? "Update Booking Page" : "Complete & Create Page"
                       )}
-                    </CardContent>
-                  </Card>
-                </div>
+                    </Button>
+                  </>
+                )}
               </div>
             </DialogContent>
           </Dialog>
@@ -566,254 +614,140 @@ export default function BookingPage() {
         </Card>
       </div>
 
-      <Tabs defaultValue="profiles" className="w-full">
-        <TabsList className="mb-4">
-          <TabsTrigger value="profiles">Booking Pages</TabsTrigger>
-          <TabsTrigger value="appointments">All Appointments</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="profiles">
-          {loading ? (
-            <div className="text-center py-20">
-              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
-              <p className="text-muted-foreground">Loading booking pages...</p>
-            </div>
-          ) : profiles.length === 0 ? (
-            <Card className="border-dashed">
-              <CardContent className="text-center py-20">
-                <div className="p-4 bg-muted rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
-                  <CalendarIcon className="h-8 w-8 text-muted-foreground" />
-                </div>
-                <h3 className="text-lg font-semibold mb-2">No booking pages yet</h3>
-                <p className="text-muted-foreground mb-6 max-w-sm mx-auto">Create your first booking page to start accepting appointments from customers.</p>
-                <Button onClick={handleOpenModal}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Your First Page
-                </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {profiles.map((profile) => (
-                <Card key={profile.id} className="overflow-hidden flex flex-col hover:shadow-lg transition-all border-muted/60 group">
-                  <div className="relative aspect-video bg-muted overflow-hidden">
-                    {profile.pictures && profile.pictures.length > 0 ? (
-                      <img
-                        src={profile.pictures[0].imageUrl}
-                        alt={profile.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-muted-foreground bg-gradient-to-br from-muted to-muted/50">
-                        <CalendarIcon className="h-10 w-10 opacity-20" />
-                      </div>
-                    )}
-                    <div className="absolute top-3 right-3 flex gap-2">
-                      <Badge variant="secondary" className="bg-background/90 backdrop-blur-sm shadow-sm border-none font-bold">
-                        {profile.bookingsCount || 0} Bookings
-                      </Badge>
+      <div className="w-full">
+        {loading ? (
+          <div className="text-center py-20">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+            <p className="text-muted-foreground">Loading booking pages...</p>
+          </div>
+        ) : profiles.length === 0 ? (
+          <Card className="border-dashed">
+            <CardContent className="text-center py-20">
+              <div className="p-4 bg-muted rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+                <CalendarIcon className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2">No booking pages yet</h3>
+              <p className="text-muted-foreground mb-6 max-w-sm mx-auto">Create your first booking page to start accepting appointments from customers.</p>
+              <Button onClick={handleOpenModal}>
+                <Plus className="h-4 w-4 mr-2" />
+                Create Your First Page
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {profiles.map((profile) => (
+              <Card key={profile.id} className="overflow-hidden flex flex-col hover:shadow-lg transition-all border-muted/60 group">
+                <div className="relative aspect-video bg-muted overflow-hidden">
+                  {profile.pictures && profile.pictures.length > 0 ? (
+                    <img
+                      src={profile.pictures[0].imageUrl}
+                      alt={profile.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-muted-foreground bg-gradient-to-br from-muted to-muted/50">
+                      <CalendarIcon className="h-10 w-10 opacity-20" />
                     </div>
+                  )}
+                  <div className="absolute top-3 right-3 flex gap-2">
+                    <Badge variant="secondary" className="bg-background/90 backdrop-blur-sm shadow-sm border-none font-bold">
+                      {profile.bookingsCount || 0} Bookings
+                    </Badge>
                   </div>
-                  
-                  <CardHeader className="p-5 pb-2">
-                    <div className="flex justify-between items-start gap-2">
-                      <div className="flex-1 min-w-0">
-                        <CardTitle className="text-xl font-bold truncate group-hover:text-primary transition-colors">{profile.name}</CardTitle>
-                        <p className="text-sm text-muted-foreground flex items-center mt-1 font-medium">
-                          <MapPin className="h-3.5 w-3.5 mr-1.5 text-primary" />
-                          {profile.location}
-                        </p>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  
-                  <CardContent className="p-5 pt-0 flex-1">
-                    {profile.business && (
-                      <div className="mt-3 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20">
-                        {profile.business.name}
-                      </div>
-                    )}
-                    {profile.description && (
-                      <p className="text-sm text-muted-foreground line-clamp-2 mt-3 leading-relaxed">
-                        {profile.description}
+                </div>
+                
+                <CardHeader className="p-5 pb-2">
+                  <div className="flex justify-between items-start gap-2">
+                    <div className="flex-1 min-w-0">
+                      <CardTitle className="text-xl font-bold truncate group-hover:text-primary transition-colors">{profile.name}</CardTitle>
+                      <p className="text-sm text-muted-foreground flex items-center mt-1 font-medium">
+                        <MapPin className="h-3.5 w-3.5 mr-1.5 text-primary" />
+                        {profile.location}
                       </p>
-                    )}
-                  </CardContent>
-                  
-                  <div className="p-5 pt-4 border-t bg-muted/20 flex gap-2 items-center justify-between mt-auto">
-                    <div className="flex gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-9 w-9 hover:bg-background hover:text-primary transition-colors"
-                        onClick={() => handleEdit(profile)}
-                        title="Edit Profile"
-                      >
-                        <Edit className="h-4.5 w-4.5" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-9 w-9 text-destructive hover:bg-destructive/10 hover:text-destructive transition-colors"
-                        onClick={() => handleDelete(profile)}
-                        title="Delete Profile"
-                      >
-                        <Trash2 className="h-4.5 w-4.5" />
-                      </Button>
-                    </div>
-                    
-                    <div className="flex gap-2">
-                      <Button
-                        variant="default"
-                        size="sm"
-                        className="h-9 px-4 font-bold shadow-sm"
-                        onClick={() => handleViewBookings(profile)}
-                      >
-                        <CalendarIcon className="h-4 w-4 mr-2" />
-                        Bookings
-                      </Button>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button variant="outline" size="sm" className="h-9 px-3 hover:bg-background shadow-sm">
-                            <Share2 className="h-4 w-4" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-56 p-2" align="end">
-                          <div className="space-y-1">
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className="w-full justify-start h-9 font-medium"
-                              onClick={() => copyShareLink(profile.publicId)}
-                            >
-                              <Copy className="h-4 w-4 mr-2 text-primary" />
-                              Copy Share Link
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className="w-full justify-start h-9 font-medium"
-                              onClick={() => window.open(`/book/${profile.publicId}`, '_blank')}
-                            >
-                              <Eye className="h-4 w-4 mr-2 text-primary" />
-                              View Public Page
-                            </Button>
-                          </div>
-                        </PopoverContent>
-                      </Popover>
                     </div>
                   </div>
-                </Card>
-              ))}
-            </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="appointments">
-          {allBookings.length === 0 ? (
-            <Card className="border-dashed">
-              <CardContent className="text-center py-20">
-                <div className="p-4 bg-muted rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
-                  <Clock className="h-8 w-8 text-muted-foreground" />
+                </CardHeader>
+                
+                <CardContent className="p-5 pt-0 flex-1">
+                  {profile.business && (
+                    <div className="mt-3 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20">
+                      {profile.business.name}
+                    </div>
+                  )}
+                  {profile.description && (
+                    <p className="text-sm text-muted-foreground line-clamp-2 mt-3 leading-relaxed">
+                      {profile.description}
+                    </p>
+                  )}
+                </CardContent>
+                
+                <div className="p-5 pt-4 border-t bg-muted/20 flex gap-2 items-center justify-between mt-auto">
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="h-9 px-4 font-bold shadow-sm"
+                    onClick={() => handleViewBookings(profile)}
+                  >
+                    <CalendarIcon className="h-4 w-4 mr-2" />
+                    Bookings
+                  </Button>
+                  
+                  <div className="flex gap-2">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-9 w-9 text-destructive hover:bg-destructive/10 hover:text-destructive transition-colors"
+                      onClick={() => handleDelete(profile)}
+                      title="Delete Profile"
+                    >
+                      <Trash2 className="h-4.5 w-4.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-9 w-9 hover:bg-background hover:text-primary transition-colors"
+                      onClick={() => handleEdit(profile)}
+                      title="Edit Profile"
+                    >
+                      <Edit className="h-4.5 w-4.5" />
+                    </Button>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" size="sm" className="h-9 px-3 hover:bg-background shadow-sm">
+                          <Share2 className="h-4 w-4" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-56 p-2" align="end">
+                        <div className="space-y-1">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="w-full justify-start h-9 font-medium"
+                            onClick={() => copyShareLink(profile.publicId)}
+                          >
+                            <Copy className="h-4 w-4 mr-2 text-primary" />
+                            Copy Share Link
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="w-full justify-start h-9 font-medium"
+                            onClick={() => window.open(`/book/${profile.publicId}`, '_blank')}
+                          >
+                            <Eye className="h-4 w-4 mr-2 text-primary" />
+                            View Public Page
+                          </Button>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                 </div>
-                <h3 className="text-lg font-semibold mb-2">No appointments yet</h3>
-                <p className="text-muted-foreground">Once customers book through your pages, they will appear here.</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="font-bold text-lg">All Customer Responses</h3>
-                <Badge variant="outline" className="font-mono">
-                  {allBookings.length} Total
-                </Badge>
-              </div>
-              
-              <div className="grid gap-4">
-                {allBookings.map((booking: any) => (
-                  <Card key={booking.id} className="overflow-hidden border-l-4 border-l-primary hover:shadow-md transition-shadow">
-                    <CardContent className="p-0">
-                      <div className="grid md:grid-cols-12">
-                        <div className="md:col-span-2 bg-primary/5 p-4 flex flex-col items-center justify-center border-r">
-                          <span className="text-xs font-bold text-primary uppercase">
-                            {formatUTCDate(booking.date, "EEE")}
-                          </span>
-                          <span className="text-2xl font-black text-primary">
-                            {formatUTCDate(booking.date, "dd")}
-                          </span>
-                          <span className="text-xs font-medium text-muted-foreground">
-                            {formatUTCDate(booking.date, "MMM 'yy")}
-                          </span>
-                        </div>
-                        
-                        <div className="md:col-span-10 p-5">
-                          <div className="flex flex-col md:flex-row justify-between gap-4">
-                            <div className="space-y-4 flex-1">
-                              <div className="flex items-start justify-between">
-                                <div className="flex items-center gap-3">
-                                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold border border-primary/20">
-                                    {booking.customerName.charAt(0).toUpperCase()}
-                                  </div>
-                                  <div>
-                                    <h4 className="font-bold text-lg leading-none">{booking.customerName}</h4>
-                                    <p className="text-sm text-muted-foreground mt-1.5 flex items-center">
-                                      <Phone className="h-3 w-3 mr-1.5" />
-                                      {booking.customerPhone}
-                                    </p>
-                                  </div>
-                                </div>
-                                
-                                <div className="flex flex-col items-end gap-2">
-                                  <Badge variant="secondary" className="font-medium text-[10px] h-fit">
-                                    {booking.bookingProfile.name}
-                                  </Badge>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8 text-destructive hover:bg-destructive/10"
-                                    onClick={() => handleDeleteBooking(booking)}
-                                    title="Delete Appointment"
-                                  >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </Button>
-                                </div>
-                              </div>
-
-                              {booking.notes && (
-                                <div className="bg-muted/40 p-4 rounded-xl border border-muted/60 relative group">
-                                  <MessageSquare className="h-4 w-4 absolute -top-2 -left-2 text-primary bg-background rounded-full p-0.5 border" />
-                                  <p className="text-[11px] uppercase font-bold text-muted-foreground mb-1 tracking-wider">Customer Message</p>
-                                  <p className="text-sm italic text-foreground/90">"{booking.notes}"</p>
-                                </div>
-                              )}
-                            </div>
-
-                            <div className="flex flex-col items-end justify-between text-right gap-4 min-w-[120px]">
-                              <div className="space-y-1">
-                                <div className="text-[10px] font-mono text-muted-foreground">
-                                  ID: {booking.id.slice(0, 8)}
-                                </div>
-                                <div className="flex items-center justify-end gap-1 text-[10px] text-muted-foreground font-medium">
-                                  <Clock className="h-3 w-3" />
-                                  Booked {format(new Date(booking.createdAt), "MMM dd, HH:mm")}
-                                </div>
-                              </div>
-                              
-                              <Button variant="outline" size="sm" className="h-8 text-xs font-bold" onClick={() => window.open(`/book/${booking.bookingProfile.publicId}`, '_blank')}>
-                                View Page
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Bookings Dialog */}
       <Dialog open={showBookingsDialog} onOpenChange={setShowBookingsDialog}>
@@ -826,59 +760,22 @@ export default function BookingPage() {
 
           <div className="flex-1 overflow-y-auto p-6">
             {selectedProfileForBookings && (
-              <div className="grid gap-6 md:grid-cols-4">
-                {/* Profile Summary Sidebar */}
-                <div className="md:col-span-1 space-y-4">
-                  <div className="rounded-xl overflow-hidden border bg-card">
-                    {selectedProfileForBookings.pictures?.length > 0 ? (
-                      <img
-                        src={selectedProfileForBookings.pictures[0].imageUrl}
-                        alt={selectedProfileForBookings.name}
-                        className="w-full aspect-square object-cover"
-                      />
-                    ) : (
-                      <div className="w-full aspect-square bg-muted flex items-center justify-center">
-                        <CalendarIcon className="h-12 w-12 opacity-10" />
-                      </div>
-                    )}
-                    <div className="p-4 space-y-3">
-                      <div>
-                        <h3 className="font-bold">{selectedProfileForBookings.name}</h3>
-                        <p className="text-xs text-muted-foreground flex items-center mt-1">
-                          <MapPin className="h-3 w-3 mr-1" />
-                          {selectedProfileForBookings.location}
-                        </p>
-                      </div>
-                      
-                      <div className="pt-3 border-t">
-                        <p className="text-[10px] uppercase font-bold text-muted-foreground mb-1">Stats</p>
-                        <div className="flex justify-between items-center text-sm">
-                          <span className="text-muted-foreground">Total Bookings</span>
-                          <span className="font-semibold">{bookings[selectedProfileForBookings.id]?.length || 0}</span>
-                        </div>
-                      </div>
-
-                      {selectedProfileForBookings.description && (
-                        <div className="pt-3 border-t">
-                          <p className="text-[10px] uppercase font-bold text-muted-foreground mb-1">About</p>
-                          <p className="text-xs text-muted-foreground leading-relaxed italic">
-                            "{selectedProfileForBookings.description}"
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
+              <div className="space-y-6">
                 {/* Bookings List Area */}
-                <div className="md:col-span-3">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-semibold flex items-center">
-                      Recent Appointments
-                      <Badge variant="secondary" className="ml-2">
-                        {bookings[selectedProfileForBookings.id]?.length || 0}
-                      </Badge>
-                    </h3>
+                <div>
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="space-y-1">
+                      <h3 className="text-xl font-bold flex items-center">
+                        Appointments for {selectedProfileForBookings.name}
+                        <Badge variant="secondary" className="ml-3 font-bold">
+                          {bookings[selectedProfileForBookings.id]?.length || 0}
+                        </Badge>
+                      </h3>
+                      <p className="text-sm text-muted-foreground flex items-center">
+                        <MapPin className="h-3.5 w-3.5 mr-1.5" />
+                        {selectedProfileForBookings.location}
+                      </p>
+                    </div>
                   </div>
 
                   {bookings[selectedProfileForBookings.id]?.length === 0 ? (

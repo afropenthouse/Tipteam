@@ -131,6 +131,7 @@ router.post(
     body("name").trim().notEmpty().withMessage("Business name is required"),
     body("location").trim().notEmpty().withMessage("Location is required"),
     body("description").optional().trim(),
+    body("services").optional().isArray(),
     body("businessId").optional().isString(),
   ],
   async (req: AuthRequest, res: Response) => {
@@ -144,7 +145,7 @@ router.post(
         return res.status(400).json({ errors: errors.array() });
       }
 
-      const { name, location, description, businessId } = req.body;
+      const { name, location, description, services, businessId } = req.body;
 
       const profile = await prisma.bookingProfile.create({
         data: {
@@ -152,6 +153,7 @@ router.post(
           name,
           location,
           description: description || null,
+          services: services || [],
           businessId: businessId || null,
         }
       });
@@ -174,12 +176,13 @@ router.put(
     body("name").optional().trim().notEmpty(),
     body("location").optional().trim().notEmpty(),
     body("description").optional().trim(),
+    body("services").optional().isArray(),
     body("businessId").optional().isString(),
   ],
   async (req: AuthRequest, res: Response) => {
     try {
       const id = getId(req.params.id);
-      const { name, location, description, businessId } = req.body;
+      const { name, location, description, services, businessId } = req.body;
 
       const existing = await prisma.bookingProfile.findFirst({
         where: {
@@ -198,6 +201,7 @@ router.put(
           name: name !== undefined ? name : existing.name,
           location: location !== undefined ? location : existing.location,
           description: description !== undefined ? description : existing.description,
+          services: services !== undefined ? services : existing.services,
           businessId: businessId !== undefined ? businessId : existing.businessId,
         }
       });

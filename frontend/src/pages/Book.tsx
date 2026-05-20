@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Loader2, MapPin, Calendar as CalendarIcon, ChevronLeft, ChevronRight, CheckCircle2, User, Phone, X } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Loader2, MapPin, Calendar as CalendarIcon, ChevronLeft, ChevronRight, CheckCircle2, User, Phone, X, Briefcase } from "lucide-react";
 import { format, startOfDay } from "date-fns";
 import { getPublicBookingProfile, getUnavailableDates, createBooking } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
@@ -28,6 +29,22 @@ export default function PublicBookingPage() {
   const [notes, setNotes] = useState("");
   const [bookingLoading, setBookingLoading] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  const [selectedService, setSelectedService] = useState<string>("");
+  const [customService, setCustomService] = useState("");
+
+  const availableServices = [
+    ...(profile?.services || []),
+    "Other (Custom)"
+  ];
+
+  const timeSlots = [
+    "08:00 AM", "08:30 AM", "09:00 AM", "09:30 AM", "10:00 AM", "10:30 AM",
+    "11:00 AM", "11:30 AM", "12:00 PM", "12:30 PM", "01:00 PM", "01:30 PM",
+    "02:00 PM", "02:30 PM", "03:00 PM", "03:30 PM", "04:00 PM", "04:30 PM",
+    "05:00 PM", "05:30 PM", "06:00 PM", "06:30 PM", "07:00 PM", "07:30 PM",
+    "08:00 PM"
+  ];
 
   useEffect(() => {
     const fetchData = async () => {
@@ -65,19 +82,29 @@ export default function PublicBookingPage() {
      if (!selectedDate || !customerName || !customerPhone || !publicId) return;
 
      setBookingLoading(true);
+     const serviceText = selectedService === "Other (Custom)" ? customService : selectedService;
+     const bookingNotes = [
+       serviceText ? `Service: ${serviceText}` : null,
+       `Time: ${selectedTime}`,
+       notes ? `Notes: ${notes}` : null
+     ].filter(Boolean).join(" | ");
+
      try {
        await createBooking({
          bookingProfileId: profile.id,
          date: format(selectedDate, "yyyy-MM-dd"),
          customerName,
          customerPhone,
-         notes: notes || undefined
+         notes: bookingNotes
        });
        
        setShowBookingDialog(false);
        setShowSuccessDialog(true);
        setNotes("");
        setSelectedDate(undefined);
+       setSelectedTime(null);
+       setSelectedService("");
+       setCustomService("");
        
        const datesData = await getUnavailableDates(publicId);
        setUnavailableDates(datesData);
@@ -103,6 +130,9 @@ export default function PublicBookingPage() {
       setShowSuccessDialog(false);
       setCustomerName("");
       setCustomerPhone("");
+      setSelectedService("");
+      setCustomService("");
+      setSelectedTime(null);
     }
   };
 
@@ -139,36 +169,21 @@ export default function PublicBookingPage() {
 
   return (
     <div className="min-h-screen bg-muted/30 pb-20">
-      {/* Simplified Header */}
-      <div className="bg-white border-b sticky top-0 z-10 shadow-sm">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center gap-4">
-          {profile.pictures?.length > 0 && (
-            <img 
-              src={profile.pictures[0].imageUrl} 
-              className="w-14 h-14 rounded-full object-cover border"
-              alt={profile.name}
-            />
-          )}
-          <div>
-            <h1 className="text-2xl font-bold">{profile.name}</h1>
-            <p className="text-sm text-muted-foreground flex items-center">
-              <MapPin className="h-3 w-3 mr-1" />
-              {profile.location}
-            </p>
-          </div>
-        </div>
-      </div>
-
       <main className="max-w-6xl mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Left Column: Details & Images */}
           <div className="space-y-6">
-            <Card className="shadow-sm">
-              <CardHeader>
-                <CardTitle>Business Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed">
+            <Card className="shadow-sm border-none bg-transparent">
+              <CardContent className="space-y-6 p-0">
+                <div className="space-y-2">
+                  <h1 className="text-4xl font-black tracking-tight">{profile.name}</h1>
+                  <p className="text-muted-foreground flex items-center text-lg">
+                    <MapPin className="h-5 w-5 mr-2 text-primary" />
+                    {profile.location}
+                  </p>
+                </div>
+
+                <p className="text-muted-foreground whitespace-pre-wrap leading-relaxed text-lg">
                   {profile.description || "Welcome! Please select a date to book your appointment."}
                 </p>
 
@@ -223,33 +238,76 @@ export default function PublicBookingPage() {
             </Card>
           </div>
 
-          {/* Right Column: Calendar */}
+          {/* Right Column: Selection */}
           <div className="space-y-6">
             <Card className="shadow-sm">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CalendarIcon className="h-5 w-5" />
-                  Select a Date
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Calendar
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={setSelectedDate}
-                  disabled={(date) => date < startOfDay(new Date()) || isDateUnavailable(date)}
-                  className="rounded-md border mx-auto"
-                />
-              </CardContent>
-              <CardFooter>
-                <Button 
-                  className="w-full h-12 font-bold" 
-                  disabled={!selectedDate}
-                  onClick={handleBookNow}
-                >
-                  {selectedDate ? `Book for ${format(selectedDate, "MMM dd, yyyy")}` : "Choose a Date"}
-                </Button>
-              </CardFooter>
+              {!selectedDate ? (
+                <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <CalendarIcon className="h-5 w-5" />
+                      Select a Date
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <Calendar
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={setSelectedDate}
+                      disabled={(date) => date < startOfDay(new Date()) || isDateUnavailable(date)}
+                      className="rounded-md border mx-auto"
+                    />
+                  </CardContent>
+                  <CardFooter>
+                    <Button 
+                      className="w-full h-12 font-bold" 
+                      disabled={!selectedDate}
+                    >
+                      Choose a Date
+                    </Button>
+                  </CardFooter>
+                </div>
+              ) : (
+                <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="flex items-center gap-2">
+                        <CalendarIcon className="h-5 w-5" />
+                        Select Time
+                      </CardTitle>
+                      <Button variant="ghost" size="sm" onClick={() => { setSelectedDate(undefined); setSelectedTime(null); }}>
+                        Change Date
+                      </Button>
+                    </div>
+                    <p className="text-sm text-primary font-bold mt-1">
+                      {format(selectedDate, "EEEE, MMMM dd")}
+                    </p>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-3 gap-2 max-h-[400px] overflow-y-auto pr-2 scrollbar-hide">
+                      {timeSlots.map((time) => (
+                        <Button
+                          key={time}
+                          variant={selectedTime === time ? "default" : "outline"}
+                          className={`h-11 font-medium ${selectedTime === time ? "shadow-md" : ""}`}
+                          onClick={() => setSelectedTime(time)}
+                        >
+                          {time}
+                        </Button>
+                      ))}
+                    </div>
+                  </CardContent>
+                  <CardFooter>
+                    <Button 
+                      className="w-full h-12 font-bold shadow-lg shadow-primary/20" 
+                      disabled={!selectedTime}
+                      onClick={handleBookNow}
+                    >
+                      {selectedTime ? `Book for ${selectedTime}` : "Choose a Time"}
+                    </Button>
+                  </CardFooter>
+                </div>
+              )}
             </Card>
           </div>
         </div>
@@ -257,14 +315,45 @@ export default function PublicBookingPage() {
 
       {/* Booking Form Dialog */}
       <Dialog open={showBookingDialog} onOpenChange={setShowBookingDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Complete Your Booking</DialogTitle>
             <DialogDescription>
-              {selectedDate && format(selectedDate, "EEEE, MMMM dd, yyyy")}
+              {selectedDate && format(selectedDate, "EEEE, MMMM dd, yyyy")} at {selectedTime}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Select Service *</Label>
+              <Select value={selectedService} onValueChange={setSelectedService}>
+                <SelectTrigger className="w-full">
+                  <div className="flex items-center gap-2">
+                    <Briefcase className="h-4 w-4 text-muted-foreground" />
+                    <SelectValue placeholder="What service do you need?" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  {availableServices.map((service) => (
+                    <SelectItem key={service} value={service}>
+                      {service}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {selectedService === "Other (Custom)" && (
+              <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
+                <Label htmlFor="custom-service">Specify Service *</Label>
+                <Input
+                  id="custom-service"
+                  placeholder="Enter the service you need"
+                  value={customService}
+                  onChange={(e) => setCustomService(e.target.value)}
+                />
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="name">Your Full Name *</Label>
               <div className="relative">
@@ -307,7 +396,13 @@ export default function PublicBookingPage() {
             <Button
               className="w-full h-12"
               onClick={handleConfirmBooking}
-              disabled={bookingLoading || !customerName || !customerPhone}
+              disabled={
+                bookingLoading || 
+                !customerName || 
+                !customerPhone || 
+                !selectedService || 
+                (selectedService === "Other (Custom)" && !customService)
+              }
             >
               {bookingLoading ? (
                 <>
@@ -331,7 +426,7 @@ export default function PublicBookingPage() {
             </div>
             <DialogTitle className="text-2xl font-bold mb-2">Booking Confirmed!</DialogTitle>
             <p className="text-muted-foreground mb-6">
-              Thank you for booking with {profile?.name}. We have received your request and will contact you shortly at {customerPhone}.
+              Thank you for booking <strong>{selectedService === "Other (Custom)" ? customService : selectedService}</strong> with {profile?.name} for {selectedDate && format(selectedDate, "MMM dd")} at {selectedTime}. We have received your request and will contact you shortly at {customerPhone}.
             </p>
             <Button className="w-full h-12" onClick={() => handleCloseSuccessDialog(false)}>
               Close
