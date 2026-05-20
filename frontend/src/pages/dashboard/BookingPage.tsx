@@ -65,10 +65,9 @@ export default function BookingPage() {
    const [unavailableDates, setUnavailableDates] = useState<{ id: string; date: Date; startTime?: string; endTime?: string }[]>([]);
    const [focusedDate, setFocusedDate] = useState<Date | undefined>(undefined);
 
-   // Slot editing state
+   // Slot entry state (only for adding new slots)
    const [slotStartTime, setSlotStartTime] = useState<string>(timeSlots[0]);
    const [slotEndTime, setSlotEndTime] = useState<string>(timeSlots[timeSlots.length - 1]);
-   const [editingSlotId, setEditingSlotId] = useState<string | null>(null);
 
    useEffect(() => {
      fetchProfiles();
@@ -188,34 +187,18 @@ export default function BookingPage() {
 
    const formatTimeRange = (start?: string, end?: string) => `${start || "?"} – ${end || "?"}`;
 
-   const resetSlotInputs = () => {
-     setSlotStartTime(timeSlots[0]);
-     setSlotEndTime(timeSlots[timeSlots.length - 1]);
-     setEditingSlotId(null);
-   };
-
-   const startSlotEdit = (id: string, startTime: string, endTime: string) => {
-     setSlotStartTime(startTime);
-     setSlotEndTime(endTime);
-     setEditingSlotId(id);
-   };
-
-   const saveOrUpdateSlot = (date: Date) => {
-     if (parseTimeToMinutes(slotEndTime) <= parseTimeToMinutes(slotStartTime)) {
-       toast({ title: "Invalid range", description: "End time must be after start time", variant: "destructive" });
-       return;
-     }
-     if (!editingSlotId) {
-       setUnavailableDates(prev => [...prev, {
-         id: Math.random().toString(36).substr(2, 9),
-         date, startTime: slotStartTime, endTime: slotEndTime
-       }]);
-     } else {
-       updateUnavailableTime(editingSlotId, slotStartTime, slotEndTime);
-       setEditingSlotId(null);
-     }
-     resetSlotInputs();
-   };
+    const addSlotForDate = (date: Date) => {
+      if (parseTimeToMinutes(slotEndTime) <= parseTimeToMinutes(slotStartTime)) {
+        toast({ title: "Invalid range", description: "End time must be after start time", variant: "destructive" });
+        return;
+      }
+      setUnavailableDates(prev => [...prev, {
+        id: Math.random().toString(36).substr(2, 9),
+        date, startTime: slotStartTime, endTime: slotEndTime
+      }]);
+      setSlotStartTime(timeSlots[0]);
+      setSlotEndTime(timeSlots[timeSlots.length - 1]);
+    };
 
     const handleSave = async () => {
      if (!name || !location) {
@@ -599,108 +582,60 @@ export default function BookingPage() {
                               </span>
                             </div>
 
-                            <div className="flex flex-wrap items-center gap-2">
-                              <Label className="text-[10px] font-bold uppercase text-muted-foreground">Start</Label>
-                              <Select value={slotStartTime} onValueChange={setSlotStartTime}>
-                                <SelectTrigger className="h-8 w-24 border-2 font-medium text-xs">
-                                  <SelectValue placeholder="—" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {timeSlots.map(t => (
-                                    <SelectItem key={t} value={t} className="text-xs">{t}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
 
-                              <span className="text-[10px] font-bold text-muted-foreground">to</span>
-
-                              <Select value={slotEndTime} onValueChange={setSlotEndTime}>
-                                <SelectTrigger className="h-8 w-24 border-2 font-medium text-xs">
-                                  <SelectValue placeholder="—" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {timeSlots.map(t => (
-                                    <SelectItem key={t} value={t} className="text-xs">{t}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-
+                            <div className="flex flex-row items-center gap-2">
+                              <div className="flex items-center gap-2">
+                                <Label className="text-[10px] font-bold uppercase text-muted-foreground">Start</Label>
+                                <Select value={slotStartTime} onValueChange={setSlotStartTime}>
+                                  <SelectTrigger className="h-8 w-24 border-2 font-medium text-xs">
+                                    <SelectValue placeholder="—" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {timeSlots.map(t => (
+                                      <SelectItem key={t} value={t} className="text-xs">{t}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <span className="text-[10px] font-bold text-muted-foreground">to</span>
+                                <Select value={slotEndTime} onValueChange={setSlotEndTime}>
+                                  <SelectTrigger className="h-8 w-24 border-2 font-medium text-xs">
+                                    <SelectValue placeholder="—" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {timeSlots.map(t => (
+                                      <SelectItem key={t} value={t} className="text-xs">{t}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
                               <Button
                                 type="button"
                                 size="sm"
                                 className="h-8 px-2.5 text-xs font-bold"
-                                onClick={() => saveOrUpdateSlot(focusedDate!)}
+                                onClick={() => addSlotForDate(focusedDate!)}
                               >
                                 Add
                               </Button>
                             </div>
 
-                            <div className="flex flex-wrap items-center gap-2 pt-2">
-                              {unavailableDates
-                                .filter(d => d.date.getTime() === focusedDate.getTime())
-                                .map((item) => (
-                                  editingSlotId === item.id ? (
-                                    <div key={item.id} className="flex items-center gap-1.5 animate-in fade-in slide-in-from-top-1 duration-200">
-                                      <Select value={item.startTime || timeSlots[0]} onValueChange={(val) => updateUnavailableTime(item.id, val, item.endTime || timeSlots[timeSlots.length - 1])}>
-                                        <SelectTrigger className="h-8 w-24 border-2 font-medium text-xs">
-                                          <SelectValue placeholder="Start" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          {timeSlots.map(t => (
-                                            <SelectItem key={t} value={t} className="text-xs">{t}</SelectItem>
-                                          ))}
-                                        </SelectContent>
-                                      </Select>
-                                      <span className="text-[10px] font-bold text-muted-foreground">to</span>
-                                      <Select value={item.endTime || timeSlots[timeSlots.length - 1]} onValueChange={(val) => updateUnavailableTime(item.id, item.startTime || timeSlots[0], val)}>
-                                        <SelectTrigger className="h-8 w-24 border-2 font-medium text-xs">
-                                          <SelectValue placeholder="End" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          {timeSlots.map(t => (
-                                            <SelectItem key={t} value={t} className="text-xs">{t}</SelectItem>
-                                          ))}
-                                        </SelectContent>
-                                      </Select>
-                                      <Button
-                                        type="button"
-                                        size="sm"
-                                        className="h-8 px-2 text-xs font-bold"
-                                        onClick={() => { setEditingSlotId(null); }}
-                                      >
-                                        Done
-                                      </Button>
-                                        <Button
-                                          type="button"
-                                          variant="ghost"
-                                          size="icon"
-                                          className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10 rounded-full"
-                                          onClick={(e) => { e.stopPropagation(); removeUnavailableSlot(item.id); setEditingSlotId(null); }}
-                                        >
-                                          <X className="h-3 w-3" />
-                                        </Button>
-                                    </div>
-                                    ) : (
-                                          <button
-                                            type="button"
-                                            key={item.id}
-                                            onClick={() => startSlotEdit(item.id, item.startTime || timeSlots[0], item.endTime || timeSlots[timeSlots.length - 1])}
-                                            className="inline-flex items-center gap-0.5 pl-2.5 pr-1 py-0.5 bg-muted/60 border border-dashed rounded-full text-xs font-mono font-bold hover:bg-primary/10 hover:border-primary/30 transition-colors group"
-                                          >
-                                        {formatTimeRange(item.startTime, item.endTime)}
-                                        <span
-                                          className="p-0.5 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                                          onClick={(e) => { e.stopPropagation(); removeUnavailableSlot(item.id); }}
-                                        >
-                                          <X className="h-2.5 w-2.5" />
-                                        </span>
-                                      </button>
-                                  )
-                                ))}
-                              {unavailableDates.filter(d => d.date.getTime() === focusedDate.getTime()).length === 0 && (
-                                <p className="text-[10px] text-muted-foreground italic py-0.5">No blocks yet — add one above.</p>
-                              )}
-                            </div>
+                              <div className="flex flex-wrap items-center gap-2 pt-1">
+                                {unavailableDates
+                                  .filter(d => d.date.getTime() === focusedDate.getTime())
+                                  .map((item) => (
+                                    <span
+                                      key={item.id}
+                                      title={formatTimeRange(item.startTime, item.endTime)}
+                                      onClick={(e) => { e.stopPropagation(); removeUnavailableSlot(item.id); }}
+                                      className="inline-flex items-center gap-0.5 pl-2.5 pr-1 py-0.5 bg-muted/60 border border-dashed rounded-full text-xs font-mono font-bold text-muted-foreground hover:text-destructive hover:bg-destructive/10 hover:border-destructive/30 cursor-pointer transition-colors"
+                                    >
+                                      {formatTimeRange(item.startTime, item.endTime)}
+                                      <X className="h-2.5 w-2.5 text-current" />
+                                    </span>
+                                  ))}
+                                {unavailableDates.filter(d => d.date.getTime() === focusedDate.getTime()).length === 0 && (
+                                  <p className="text-[10px] text-muted-foreground italic py-0.5">No blocks yet — add one above.</p>
+                                )}
+                              </div>
                           </>
                           ) : (
                           <div className="flex flex-col items-center justify-center h-full py-16 text-muted-foreground animate-in fade-in duration-500">
