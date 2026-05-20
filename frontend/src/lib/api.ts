@@ -509,6 +509,7 @@ export type Booking = {
   id: string;
   bookingProfileId: string;
   date: string; // ISO date string
+  time?: string; // e.g., "10:30 AM"
   customerName: string;
   customerPhone: string;
   notes?: string;
@@ -524,6 +525,8 @@ export type UnavailableDate = {
   id: string;
   bookingProfileId: string;
   date: string;
+  startTime?: string | null;
+  endTime?: string | null;
   createdAt: string;
 };
 
@@ -663,7 +666,7 @@ export const deleteBookingPicture = async (pictureId: string): Promise<void> => 
   }
 };
 
-export const addUnavailableDates = async (profileId: string, dates: string[]): Promise<UnavailableDate[]> => {
+export const addUnavailableDates = async (profileId: string, dates: (string | { date: string; startTime?: string; endTime?: string })[]): Promise<UnavailableDate[]> => {
   const { dates: result } = await api.post<{ dates: UnavailableDate[] }>(`/bookings/${profileId}/unavailable-dates`, { dates });
   return result;
 };
@@ -672,7 +675,10 @@ export const removeUnavailableDate = async (dateId: string): Promise<void> => {
   await api.delete(`/bookings/unavailable-dates/${dateId}`);
 };
 
-export const getUnavailableDates = async (publicId: string): Promise<string[]> => {
+export const getUnavailableDates = async (publicId: string): Promise<{
+  unavailableDates: { date: string; startTime?: string | null; endTime?: string | null }[];
+  bookings: { date: string; time?: string | null }[];
+}> => {
   const response = await fetch(`${API_URL}/bookings/public/${publicId}/unavailable-dates`, {
     method: 'GET',
     headers: {
@@ -684,8 +690,7 @@ export const getUnavailableDates = async (publicId: string): Promise<string[]> =
     throw new Error("Failed to get unavailable dates");
   }
 
-  const data = await response.json();
-  return data.dates;
+  return response.json();
 };
 
 export const deleteBookingProfile = async (id: string): Promise<void> => {
@@ -700,6 +705,7 @@ export const getBookingShareUrl = (publicId: string): string => {
 export const createBooking = async (bookingData: {
   bookingProfileId: string;
   date: string; // yyyy-mm-dd
+  time?: string;
   customerName: string;
   customerPhone: string;
   notes?: string;

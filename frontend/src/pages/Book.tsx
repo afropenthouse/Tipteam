@@ -18,7 +18,10 @@ export default function PublicBookingPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [profile, setProfile] = useState<any>(null);
-  const [unavailableDates, setUnavailableDates] = useState<string[]>([]);
+  const [unavailabilityData, setUnavailabilityData] = useState<{
+    unavailableDates: { date: string; startTime?: string | null; endTime?: string | null }[];
+    bookings: { date: string; time?: string | null }[];
+  }>({ unavailableDates: [], bookings: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
@@ -51,12 +54,12 @@ export default function PublicBookingPage() {
       if (!publicId) return;
       
       try {
-        const [profileData, datesData] = await Promise.all([
+        const [profileData, data] = await Promise.all([
           getPublicBookingProfile(publicId),
           getUnavailableDates(publicId)
         ]);
         setProfile(profileData || null);
-        setUnavailableDates(datesData);
+        setUnavailabilityData(data);
       } catch (err: any) {
         console.error(err);
         setError(err.message || "Failed to load booking profile");
@@ -70,8 +73,41 @@ export default function PublicBookingPage() {
 
   const isDateUnavailable = (date: Date) => {
     const dateStr = format(date, "yyyy-MM-dd");
-    return unavailableDates.includes(dateStr);
+    return unavailabilityData.unavailableDates.some(u => u.date === dateStr && !u.startTime && !u.endTime);
   };
+
+  const isTimeSlotUnavailable = (date: Date, time: string) => {
+     const dateStr = format(date, "yyyy-MM-dd");
+     
+     // Check if it's already booked
+     if (unavailabilityData.bookings.some(b => b.date === dateStr && b.time === time)) {
+       return true;
+     }
+     
+     // Check if it falls within an unavailable time range
+     const timeRanges = unavailabilityData.unavailableDates.filter(u => u.date === dateStr && u.startTime && u.endTime);
+     
+     if (timeRanges.length > 0) {
+       const timeToMinutes = (t: string) => {
+         const [timePart, meridiem] = t.split(" ");
+         let [hours, minutes] = timePart.split(":").map(Number);
+         if (meridiem === "PM" && hours !== 12) hours += 12;
+         if (meridiem === "AM" && hours === 12) hours = 0;
+         return hours * 60 + minutes;
+       };
+       
+       const slotMinutes = timeToMinutes(time);
+       
+       return timeRanges.some(range => {
+         const start = timeToMinutes(range.startTime!);
+         const end = timeToMinutes(range.endTime!);
+         // If a slot is exactly at the start or end, it's considered unavailable
+         return slotMinutes >= start && slotMinutes <= end;
+       });
+     }
+     
+     return false;
+   };
 
   const handleBookNow = () => {
     if (!selectedDate) return;
@@ -85,7 +121,6 @@ export default function PublicBookingPage() {
      const serviceText = selectedService === "Other (Custom)" ? customService : selectedService;
      const bookingNotes = [
        serviceText ? `Service: ${serviceText}` : null,
-       `Time: ${selectedTime}`,
        notes ? `Notes: ${notes}` : null
      ].filter(Boolean).join(" | ");
 
@@ -93,6 +128,7 @@ export default function PublicBookingPage() {
        await createBooking({
          bookingProfileId: profile.id,
          date: format(selectedDate, "yyyy-MM-dd"),
+         time: selectedTime || undefined,
          customerName,
          customerPhone,
          notes: bookingNotes
@@ -106,8 +142,8 @@ export default function PublicBookingPage() {
        setSelectedService("");
        setCustomService("");
        
-       const datesData = await getUnavailableDates(publicId);
-       setUnavailableDates(datesData);
+       const data = await getUnavailableDates(publicId);
+       setUnavailabilityData(data);
        
        toast({
          title: "Booking Successful!",
@@ -285,16 +321,20 @@ export default function PublicBookingPage() {
                   </CardHeader>
                   <CardContent>
                     <div className="grid grid-cols-3 gap-2 max-h-[400px] overflow-y-auto pr-2 scrollbar-hide">
-                      {timeSlots.map((time) => (
-                        <Button
-                          key={time}
-                          variant={selectedTime === time ? "default" : "outline"}
-                          className={`h-11 font-medium ${selectedTime === time ? "shadow-md" : ""}`}
-                          onClick={() => setSelectedTime(time)}
-                        >
-                          {time}
-                        </Button>
-                      ))}
+                      {timeSlots.map((time) => {
+                        const unavailable = isTimeSlotUnavailable(selectedDate, time);
+                        return (
+                          <Button
+                            key={time}
+                            variant={selectedTime === time ? "default" : "outline"}
+                            className={`h-11 font-medium ${selectedTime === time ? "shadow-md" : ""}`}
+                            onClick={() => setSelectedTime(time)}
+                            disabled={unavailable}
+                          >
+                            {time}
+                          </Button>
+                        );
+                      })}
                     </div>
                   </CardContent>
                   <CardFooter>

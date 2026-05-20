@@ -153,6 +153,8 @@ model UnavailableDate {
   id             String       @id @default(uuid())
   bookingProfileId String
   date           DateTime
+  startTime      String?      // e.g., "09:00 AM"
+  endTime        String?      // e.g., "05:00 PM"
   createdAt      DateTime     @default(now())
   bookingProfile BookingProfile @relation(fields: [bookingProfileId], references: [id], onDelete: Cascade)
 
@@ -163,6 +165,7 @@ model Booking {
   id              String       @id @default(uuid())
   bookingProfileId String
   date            DateTime
+  time            String?      // e.g., "10:30 AM"
   customerName    String
   customerPhone   String
   notes           String?

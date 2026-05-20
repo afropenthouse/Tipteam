@@ -316,14 +316,20 @@ router.post("/:id/unavailable-dates", authenticate, [
     }
 
     const unavailableDates = await Promise.all(
-      dates.map((dateStr: string) =>
-        prisma.unavailableDate.create({
+      dates.map((item: any) => {
+        const dateStr = typeof item === 'string' ? item : item.date;
+        const startTime = typeof item === 'object' ? item.startTime : null;
+        const endTime = typeof item === 'object' ? item.endTime : null;
+        
+        return prisma.unavailableDate.create({
           data: {
             bookingProfileId: id,
-            date: new Date(dateStr)
+            date: new Date(dateStr),
+            startTime,
+            endTime
           }
-        })
-      )
+        });
+      })
     );
 
     res.json({ dates: unavailableDates });
@@ -379,23 +385,27 @@ router.get("/public/:publicId/unavailable-dates", async (req: Request, res: Resp
     const [unavailableDates, bookings] = await Promise.all([
       prisma.unavailableDate.findMany({
         where: { bookingProfileId: profile.id },
-        select: { date: true }
+        select: { date: true, startTime: true, endTime: true }
       }),
       prisma.booking.findMany({
         where: { bookingProfileId: profile.id },
-        select: { date: true }
+        select: { date: true, time: true }
       })
     ]);
 
-    const dateStrings = [
-      ...unavailableDates.map(d => d.date.toISOString().split('T')[0]),
-      ...bookings.map(b => b.date.toISOString().split('T')[0])
-    ];
-
-    // Remove duplicates
-    const uniqueDates = [...new Set(dateStrings)];
+    const result = {
+      unavailableDates: unavailableDates.map(d => ({
+        date: d.date.toISOString().split('T')[0],
+        startTime: d.startTime,
+        endTime: d.endTime
+      })),
+      bookings: bookings.map(b => ({
+        date: b.date.toISOString().split('T')[0],
+        time: b.time
+      }))
+    };
     
-    res.json({ dates: uniqueDates });
+    res.json(result);
   } catch (error) {
     res.status(500).json({ error: "Failed to get unavailable dates" });
   }
@@ -407,6 +417,7 @@ router.post(
   [
     body("bookingProfileId").isString().notEmpty().withMessage("Profile ID is required"),
     body("date").isString().notEmpty().withMessage("Valid date is required"),
+    body("time").optional().isString(),
     body("customerName").trim().notEmpty().withMessage("Customer name is required"),
     body("customerPhone").trim().notEmpty().withMessage("Customer phone is required"),
     body("notes").optional().trim(),
@@ -418,7 +429,7 @@ router.post(
         return res.status(400).json({ errors: errors.array() });
       }
 
-      const { bookingProfileId, date, customerName, customerPhone, notes } = req.body;
+      const { bookingProfileId, date, time, customerName, customerPhone, notes } = req.body;
       
       // Ensure date is treated as a UTC date at midnight to avoid timezone issues
       const bookingDate = new Date(date);
@@ -433,11 +444,13 @@ router.post(
         return res.status(404).json({ error: "Booking profile not found" });
       }
 
-      // Check if the date is unavailable (manually blocked)
+      // Check if the date is unavailable (manually blocked for the whole day)
       const unavailableDate = await prisma.unavailableDate.findFirst({
         where: {
           bookingProfileId: bookingProfileId,
-          date: bookingDate
+          date: bookingDate,
+          startTime: null,
+          endTime: null
         }
       });
 
@@ -445,22 +458,24 @@ router.post(
         return res.status(400).json({ error: "Selected date is unavailable" });
       }
 
-      // Check if there's already a booking for this profile on this date
+      // Check if there's already a booking for this profile on this date/time
       const existingBooking = await prisma.booking.findFirst({
         where: {
           bookingProfileId: bookingProfileId,
-          date: bookingDate
+          date: bookingDate,
+          time: time || null
         }
       });
 
       if (existingBooking) {
-        return res.status(400).json({ error: "Selected date is already booked" });
+        return res.status(400).json({ error: "Selected time slot is already booked" });
       }
 
       const booking = await prisma.booking.create({
         data: {
           bookingProfileId: bookingProfileId,
           date: bookingDate,
+          time: time || null,
           customerName,
           customerPhone,
           notes: notes || null,

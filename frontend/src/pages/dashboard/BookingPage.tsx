@@ -15,6 +15,14 @@ import { format } from "date-fns";
 import { listBookingProfiles, createBookingProfile, updateBookingProfile, deleteBookingProfile, uploadBookingPictures, addUnavailableDates, getBookingShareUrl, getBookingsForProfile, listBusinesses, getAllBookings, deleteBooking } from "@/lib/api";
 import type { Booking, Business } from "@/lib/api";
 
+const timeSlots = [
+  "08:00 AM", "08:30 AM", "09:00 AM", "09:30 AM", "10:00 AM", "10:30 AM",
+  "11:00 AM", "11:30 AM", "12:00 PM", "12:30 PM", "01:00 PM", "01:30 PM",
+  "02:00 PM", "02:30 PM", "03:00 PM", "03:30 PM", "04:00 PM", "04:30 PM",
+  "05:00 PM", "05:30 PM", "06:00 PM", "06:30 PM", "07:00 PM", "07:30 PM",
+  "08:00 PM"
+];
+
 export default function BookingPage() {
   const [profiles, setProfiles] = useState<any[]>([]);
   const [allBookings, setAllBookings] = useState<Booking[]>([]);
@@ -54,7 +62,13 @@ export default function BookingPage() {
    const [newServiceInput, setNewServiceInput] = useState("");
    
    // Unavailable dates
-  const [unavailableDates, setUnavailableDates] = useState<Date[]>([]);
+   const [unavailableDates, setUnavailableDates] = useState<{ id: string; date: Date; startTime?: string; endTime?: string }[]>([]);
+   const [focusedDate, setFocusedDate] = useState<Date | undefined>(undefined);
+
+   // Slot editing state
+   const [slotStartTime, setSlotStartTime] = useState<string>(timeSlots[0]);
+   const [slotEndTime, setSlotEndTime] = useState<string>(timeSlots[timeSlots.length - 1]);
+   const [editingSlotId, setEditingSlotId] = useState<string | null>(null);
 
    useEffect(() => {
      fetchProfiles();
@@ -107,16 +121,18 @@ export default function BookingPage() {
   };
 
     const resetForm = () => {
-      setName("");
-      setLocation("");
+      const defaultBusiness = businesses.length > 0 ? businesses[0] : null;
+      setName(defaultBusiness ? defaultBusiness.name : "");
+      setLocation(defaultBusiness ? defaultBusiness.address : "");
       setDescription("");
       setPictures([]);
       setPicturePreviews([]);
       setExistingPictureUrls([]);
       setUnavailableDates([]);
+      setFocusedDate(undefined);
       setHostServices([]);
       setNewServiceInput("");
-      setSelectedBusinessId(businesses.length > 0 ? businesses[0].id : "none");
+      setSelectedBusinessId(defaultBusiness ? defaultBusiness.id : "none");
       setCurrentStep(1);
     };
 
@@ -143,13 +159,65 @@ export default function BookingPage() {
     setPicturePreviews(picturePreviews.filter((_, i) => i !== index));
   };
 
-  const removeUnavailableDate = (dateToRemove: Date) => {
-    setUnavailableDates(unavailableDates.filter((date) => date.getTime() !== dateToRemove.getTime()));
+  const removeUnavailableSlot = (id: string) => {
+    setUnavailableDates(unavailableDates.filter((d) => d.id !== id));
   };
 
-  const formatDateForAPI = (date: Date) => format(date, "yyyy-MM-dd");
+  const addUnavailableSlot = (date: Date) => {
+    setUnavailableDates(prev => [
+      ...prev, 
+      { id: Math.random().toString(36).substr(2, 9), date, startTime: timeSlots[0], endTime: timeSlots[timeSlots.length - 1] }
+    ]);
+  };
 
-   const handleSave = async () => {
+  const updateUnavailableTime = (id: string, startTime?: string, endTime?: string) => {
+    setUnavailableDates(prev => prev.map(d => 
+      d.id === id ? { ...d, startTime, endTime } : d
+    ));
+  };
+
+   const formatDateForAPI = (date: Date) => format(date, "yyyy-MM-dd");
+
+   const parseTimeToMinutes = (t: string) => {
+     const [time, meridiem] = t.split(" ");
+     let [h, m] = time.split(":").map(Number);
+     if (meridiem === "PM" && h !== 12) h += 12;
+     if (meridiem === "AM" && h === 12) h = 0;
+     return h * 60 + m;
+   };
+
+   const formatTimeRange = (start?: string, end?: string) => `${start || "?"} – ${end || "?"}`;
+
+   const resetSlotInputs = () => {
+     setSlotStartTime(timeSlots[0]);
+     setSlotEndTime(timeSlots[timeSlots.length - 1]);
+     setEditingSlotId(null);
+   };
+
+   const startSlotEdit = (id: string, startTime: string, endTime: string) => {
+     setSlotStartTime(startTime);
+     setSlotEndTime(endTime);
+     setEditingSlotId(id);
+   };
+
+   const saveOrUpdateSlot = (date: Date) => {
+     if (parseTimeToMinutes(slotEndTime) <= parseTimeToMinutes(slotStartTime)) {
+       toast({ title: "Invalid range", description: "End time must be after start time", variant: "destructive" });
+       return;
+     }
+     if (!editingSlotId) {
+       setUnavailableDates(prev => [...prev, {
+         id: Math.random().toString(36).substr(2, 9),
+         date, startTime: slotStartTime, endTime: slotEndTime
+       }]);
+     } else {
+       updateUnavailableTime(editingSlotId, slotStartTime, slotEndTime);
+       setEditingSlotId(null);
+     }
+     resetSlotInputs();
+   };
+
+    const handleSave = async () => {
      if (!name || !location) {
        toast({ title: "Missing fields", description: "Please fill in all required fields", variant: "destructive" });
        return;
@@ -180,8 +248,12 @@ export default function BookingPage() {
          }
  
          if (unavailableDates.length > 0) {
-           const dateStrings = unavailableDates.map(formatDateForAPI);
-           await addUnavailableDates(profile.id, dateStrings);
+           const datesToSave = unavailableDates.map(d => ({
+             date: formatDateForAPI(d.date),
+             startTime: d.startTime === "all-day" ? null : d.startTime,
+             endTime: d.endTime === "all-day" ? null : d.endTime
+           }));
+           await addUnavailableDates(profile.id, datesToSave);
          }
        }
  
@@ -212,7 +284,12 @@ export default function BookingPage() {
      setDescription(profile.description || "");
      setHostServices(profile.services || []);
      setExistingPictureUrls(profile.pictures?.map((p: any) => p.imageUrl) || []);
-     const dates = profile.unavailableDates?.map((d: any) => new Date(d.date)) || [];
+     const dates = profile.unavailableDates?.map((d: any) => ({
+       id: d.id,
+       date: new Date(d.date),
+       startTime: d.startTime,
+       endTime: d.endTime
+     })) || [];
      setUnavailableDates(dates);
      setSelectedBusinessId(profile.businessId || "none");
      setCurrentStep(1);
@@ -457,66 +534,179 @@ export default function BookingPage() {
                   </div>
                 ) : (
                   <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-                    <div className="bg-primary/5 rounded-2xl p-6 border border-primary/10">
-                      <div className="flex items-start gap-4">
-                        <div className="p-3 bg-primary/10 rounded-xl">
-                          <CalendarIcon className="h-6 w-6 text-primary" />
-                        </div>
-                        <div>
-                          <h3 className="text-lg font-bold">Block Unavailable Dates</h3>
-                          <p className="text-sm text-muted-foreground">Select the dates you won't be available for bookings. Customers won't be able to book on these days.</p>
-                        </div>
-                      </div>
+                    <div className="bg-primary/5 rounded-xl p-4 border border-primary/10">
+                      <p className="text-sm text-muted-foreground">
+                        Select a date on the calendar and add the time ranges when you're unavailable. Customers won't be able to book during those periods.
+                      </p>
                     </div>
 
                     <div className="grid md:grid-cols-2 gap-8">
                       <div className="space-y-4">
-                        <Label className="text-base font-bold">Select Dates</Label>
-                        <div className="border-2 rounded-2xl p-2 bg-background">
+                        <Label className="text-base font-bold">Select Date</Label>
+                        <div className="border-2 rounded-xl p-2 bg-background">
                           <Calendar
-                            mode="multiple"
-                            selected={unavailableDates}
-                            onSelect={(dates) => setUnavailableDates(dates || [])}
-                            className="rounded-xl"
+                            mode="single"
+                            selected={focusedDate}
+                            onSelect={(date) => {
+                              if (date) {
+                                setFocusedDate(date);
+                              }
+                            }}
+                            className="rounded-lg"
                             numberOfMonths={1}
                             disabled={{ before: new Date() }}
+                            modifiers={{
+                              hasSlots: unavailableDates.map(d => d.date),
+                            }}
+                            modifiersClassNames={{
+                              hasSlots: "[&_button]:after:content-[''] [&_button]:after:block [&_button]:after:w-1.5 [&_button]:after:h-1.5 [&_button]:after:rounded-full [&_button]:after:bg-green-500 [&_button]:after:mx-auto [&_button]:after:mt-0.5",
+                            }}
                           />
                         </div>
-                        <p className="text-[10px] text-muted-foreground font-medium italic">Tip: You can click multiple dates to select/deselect them.</p>
+
+                        <div className="space-y-2">
+                          <Label className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Dates with blocks</Label>
+                          <div className="flex flex-wrap gap-2">
+                            {Array.from(new Set(unavailableDates.map(d => d.date.getTime())))
+                              .sort((a, b) => a - b)
+                              .map(time => {
+                                const date = new Date(time);
+                                return (
+                                  <Badge
+                                    key={time}
+                                    variant={focusedDate?.getTime() === time ? "default" : "secondary"}
+                                    className="cursor-pointer py-1 px-2.5 rounded-lg font-bold text-xs"
+                                    onClick={() => setFocusedDate(date)}
+                                  >
+                                    {format(date, "MMM dd")}
+                                  </Badge>
+                                );
+                              })}
+                            {unavailableDates.length === 0 && (
+                              <p className="text-xs text-muted-foreground italic">No dates blocked yet.</p>
+                            )}
+                          </div>
+                        </div>
                       </div>
 
                       <div className="space-y-4">
-                        <Label className="text-base font-bold flex justify-between items-center">
-                          Selected Dates
-                          <Badge variant="secondary" className="font-bold">{unavailableDates.length}</Badge>
-                        </Label>
-                        
-                        {unavailableDates.length > 0 ? (
-                          <div className="grid grid-cols-1 gap-2 max-h-[300px] overflow-y-auto pr-2">
-                            {unavailableDates.sort((a, b) => a.getTime() - b.getTime()).map((date, index) => (
-                              <div key={index} className="flex items-center justify-between p-3 bg-muted/30 rounded-xl border border-muted group hover:border-primary/30 transition-colors">
-                                <div className="flex items-center gap-3">
-                                  <div className="w-8 h-8 rounded-lg bg-background flex flex-col items-center justify-center border shadow-sm">
-                                    <span className="text-[8px] font-black uppercase text-primary leading-none">{format(date, "MMM")}</span>
-                                    <span className="text-sm font-bold leading-none">{format(date, "dd")}</span>
-                                  </div>
-                                  <span className="font-medium text-sm">{format(date, "EEEE, yyyy")}</span>
-                                </div>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full"
-                                    onClick={() => removeUnavailableDate(date)}
-                                  >
-                                    <X className="h-4 w-4" />
-                                  </Button>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="flex flex-col items-center justify-center py-12 border-2 border-dashed rounded-2xl bg-muted/10 text-muted-foreground">
-                            <CalendarIcon className="h-10 w-10 mb-2 opacity-20" />
-                            <p className="text-sm font-medium">No dates selected yet</p>
+                        {focusedDate ? (
+                          <>
+                            <div className="flex items-center justify-between">
+                              <Label className="text-base font-black">{format(focusedDate, "EEEE, MMMM dd")}</Label>
+                              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                                {unavailableDates.filter(d => d.date.getTime() === focusedDate.getTime()).length} block{unavailableDates.filter(d => d.date.getTime() === focusedDate.getTime()).length !== 1 ? 's' : ''}
+                              </span>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Label className="text-[10px] font-bold uppercase text-muted-foreground">Start</Label>
+                              <Select value={slotStartTime} onValueChange={setSlotStartTime}>
+                                <SelectTrigger className="h-8 w-24 border-2 font-medium text-xs">
+                                  <SelectValue placeholder="—" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {timeSlots.map(t => (
+                                    <SelectItem key={t} value={t} className="text-xs">{t}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+
+                              <span className="text-[10px] font-bold text-muted-foreground">to</span>
+
+                              <Select value={slotEndTime} onValueChange={setSlotEndTime}>
+                                <SelectTrigger className="h-8 w-24 border-2 font-medium text-xs">
+                                  <SelectValue placeholder="—" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {timeSlots.map(t => (
+                                    <SelectItem key={t} value={t} className="text-xs">{t}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+
+                              <Button
+                                type="button"
+                                size="sm"
+                                className="h-8 px-2.5 text-xs font-bold"
+                                onClick={() => saveOrUpdateSlot(focusedDate!)}
+                              >
+                                Add
+                              </Button>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-2 pt-2">
+                              {unavailableDates
+                                .filter(d => d.date.getTime() === focusedDate.getTime())
+                                .map((item) => (
+                                  editingSlotId === item.id ? (
+                                    <div key={item.id} className="flex items-center gap-1.5 animate-in fade-in slide-in-from-top-1 duration-200">
+                                      <Select value={item.startTime || timeSlots[0]} onValueChange={(val) => updateUnavailableTime(item.id, val, item.endTime || timeSlots[timeSlots.length - 1])}>
+                                        <SelectTrigger className="h-8 w-24 border-2 font-medium text-xs">
+                                          <SelectValue placeholder="Start" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {timeSlots.map(t => (
+                                            <SelectItem key={t} value={t} className="text-xs">{t}</SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                      <span className="text-[10px] font-bold text-muted-foreground">to</span>
+                                      <Select value={item.endTime || timeSlots[timeSlots.length - 1]} onValueChange={(val) => updateUnavailableTime(item.id, item.startTime || timeSlots[0], val)}>
+                                        <SelectTrigger className="h-8 w-24 border-2 font-medium text-xs">
+                                          <SelectValue placeholder="End" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {timeSlots.map(t => (
+                                            <SelectItem key={t} value={t} className="text-xs">{t}</SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        className="h-8 px-2 text-xs font-bold"
+                                        onClick={() => { setEditingSlotId(null); }}
+                                      >
+                                        Done
+                                      </Button>
+                                        <Button
+                                          type="button"
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10 rounded-full"
+                                          onClick={(e) => { e.stopPropagation(); removeUnavailableSlot(item.id); setEditingSlotId(null); }}
+                                        >
+                                          <X className="h-3 w-3" />
+                                        </Button>
+                                    </div>
+                                    ) : (
+                                          <button
+                                            type="button"
+                                            key={item.id}
+                                            onClick={() => startSlotEdit(item.id, item.startTime || timeSlots[0], item.endTime || timeSlots[timeSlots.length - 1])}
+                                            className="inline-flex items-center gap-0.5 pl-2.5 pr-1 py-0.5 bg-muted/60 border border-dashed rounded-full text-xs font-mono font-bold hover:bg-primary/10 hover:border-primary/30 transition-colors group"
+                                          >
+                                        {formatTimeRange(item.startTime, item.endTime)}
+                                        <span
+                                          className="p-0.5 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                          onClick={(e) => { e.stopPropagation(); removeUnavailableSlot(item.id); }}
+                                        >
+                                          <X className="h-2.5 w-2.5" />
+                                        </span>
+                                      </button>
+                                  )
+                                ))}
+                              {unavailableDates.filter(d => d.date.getTime() === focusedDate.getTime()).length === 0 && (
+                                <p className="text-[10px] text-muted-foreground italic py-0.5">No blocks yet — add one above.</p>
+                              )}
+                            </div>
+                          </>
+                          ) : (
+                          <div className="flex flex-col items-center justify-center h-full py-16 text-muted-foreground animate-in fade-in duration-500">
+                            <CalendarIcon className="h-10 w-10 mb-3 opacity-10" />
+                            <h4 className="text-base font-bold text-foreground/50">No Date Selected</h4>
+                            <p className="text-xs max-w-[200px] text-center mt-1">Pick a date on the calendar to add or manage blocked times.</p>
                           </div>
                         )}
                       </div>
@@ -630,7 +820,7 @@ export default function BookingPage() {
               <p className="text-muted-foreground mb-6 max-w-sm mx-auto">Create your first booking page to start accepting appointments from customers.</p>
               <Button onClick={handleOpenModal}>
                 <Plus className="h-4 w-4 mr-2" />
-                Create Your First Page
+                Create Your First Booking Page
               </Button>
             </CardContent>
           </Card>
