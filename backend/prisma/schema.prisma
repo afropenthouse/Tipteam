@@ -8,18 +8,18 @@ datasource db {
 }
 
 model User {
-  id            String         @id @default(uuid())
-  fullName      String
-  email         String         @unique
-  password      String
-  avatarUrl     String?
-  isVerified    Boolean        @default(false)
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  businesses    Business[]
-  subscriptions Subscription[]
-  verifications Verification[]
+  id              String           @id @default(uuid())
+  fullName        String
+  email           String           @unique
+  password        String
+  avatarUrl       String?
+  isVerified      Boolean          @default(false)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
   bookingProfiles BookingProfile[]
+  businesses      Business[]
+  subscriptions   Subscription[]
+  verifications   Verification[]
 
   @@map("users")
 }
@@ -39,31 +39,103 @@ model Verification {
 }
 
 model Business {
-  id              String       @id @default(uuid())
-  ownerId         String
-  name            String
-  email           String
-  phone           String
-  address         String
+  id                String           @id @default(uuid())
+  ownerId           String
+  name              String
+  email             String
+  phone             String
+  address           String
+  website           String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
   googleBusinessUrl String?
-  allowTipping    Boolean      @default(false)
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
-  owner           User         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  feedbacks       Feedback[]
-  menus           Menu[]
-  withdrawals     Withdrawal[]
-  bookingProfiles BookingProfile[] @relation("BusinessBookingProfiles")
+  allowTipping      Boolean          @default(false)
+  bookingProfiles   BookingProfile[] @relation("BusinessBookingProfiles")
+  owner             User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  feedbacks         Feedback[]
+  menus             Menu[]
+  receipts          Receipt[]
+  services          Service[]
+  staff             Staff[]
+  withdrawals       Withdrawal[]
+  customers         Customer[]
 
   @@map("businesses")
+}
+
+model Customer {
+  id                 String                     @id @default(uuid())
+  businessId         String
+  name               String
+  phone              String
+  subscriptionStatus CustomerSubscriptionStatus @default(PENDING)
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
+  business           Business                   @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  checkIns           CheckIn[]
+
+  @@map("customers")
+}
+
+model CheckIn {
+  id         String   @id @default(uuid())
+  customerId String
+  createdAt  DateTime @default(now())
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@map("check_ins")
+}
+
+model Staff {
+  id         String    @id @default(uuid())
+  businessId String
+  name       String
+  role       String
+  commission Float
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  receipts   Receipt[]
+  business   Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@map("staff")
+}
+
+model Service {
+  id         String    @id @default(uuid())
+  businessId String
+  name       String
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  amount     Float     @default(0)
+  receipts   Receipt[]
+  business   Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@map("services")
+}
+
+model Receipt {
+  id         String   @id @default(uuid())
+  businessId String
+  staffId    String
+  serviceId  String
+  amount     Float
+  date       DateTime
+  imageUrl   String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  service    Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  staff      Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@map("receipts")
 }
 
 model Menu {
   id         String    @id @default(uuid())
   businessId String?
   name       String
-  publicId   String    @unique  // Public identifier used in QR code URLs
-  pdf        Bytes?    // Store PDF as binary data in database
+  publicId   String    @unique
+  pdf        Bytes?
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
   business   Business? @relation(fields: [businessId], references: [id], onDelete: Cascade)
@@ -121,57 +193,57 @@ model Subscription {
 }
 
 model BookingProfile {
-  id          String           @id @default(uuid())
-  userId      String
-  businessId  String?          // Optional link to business
-  name        String
-  location    String
-  description String?
-  services    String[]         @default([]) // List of services offered
-  publicId    String           @unique @default(uuid())
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  business    Business?        @relation("BusinessBookingProfiles", fields: [businessId], references: [id], onDelete: SetNull)
-  pictures    BookingPicture[]
+  id               String            @id @default(uuid())
+  userId           String
+  businessId       String?
+  name             String
+  location         String
+  description      String?
+  publicId         String            @unique @default(uuid())
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  services         String[]          @default([])
+  business         Business?         @relation("BusinessBookingProfiles", fields: [businessId], references: [id])
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pictures         BookingPicture[]
+  bookings         Booking[]
   unavailableDates UnavailableDate[]
-  bookings    Booking[]        // Back-relation to Booking model
 }
 
 model BookingPicture {
-  id             String       @id @default(uuid())
+  id               String         @id @default(uuid())
   bookingProfileId String
-  imageUrl       String
-  publicId       String?      // For Cloudinary
-  createdAt      DateTime     @default(now())
-  bookingProfile BookingProfile @relation(fields: [bookingProfileId], references: [id], onDelete: Cascade)
+  imageUrl         String
+  publicId         String?
+  createdAt        DateTime       @default(now())
+  bookingProfile   BookingProfile @relation(fields: [bookingProfileId], references: [id], onDelete: Cascade)
 
   @@map("booking_pictures")
 }
 
 model UnavailableDate {
-  id             String       @id @default(uuid())
+  id               String         @id @default(uuid())
   bookingProfileId String
-  date           DateTime
-  startTime      String?      // e.g., "09:00 AM"
-  endTime        String?      // e.g., "05:00 PM"
-  createdAt      DateTime     @default(now())
-  bookingProfile BookingProfile @relation(fields: [bookingProfileId], references: [id], onDelete: Cascade)
+  date             DateTime
+  createdAt        DateTime       @default(now())
+  endTime          String?
+  startTime        String?
+  bookingProfile   BookingProfile @relation(fields: [bookingProfileId], references: [id], onDelete: Cascade)
 
   @@map("unavailable_dates")
 }
 
 model Booking {
-  id              String       @id @default(uuid())
+  id               String         @id @default(uuid())
   bookingProfileId String
-  date            DateTime
-  time            String?      // e.g., "10:30 AM"
-  customerName    String
-  customerPhone   String
-  notes           String?
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
-  bookingProfile  BookingProfile @relation(fields: [bookingProfileId], references: [id], onDelete: Cascade)
+  date             DateTime
+  customerName     String
+  customerPhone    String
+  notes            String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  time             String?
+  bookingProfile   BookingProfile @relation(fields: [bookingProfileId], references: [id], onDelete: Cascade)
 
   @@map("bookings")
 }
@@ -200,4 +272,10 @@ enum SubscriptionStatus {
   ACTIVE
   EXPIRED
   CANCELLED
+}
+
+enum CustomerSubscriptionStatus {
+  ACTIVE
+  INACTIVE
+  PENDING
 }
