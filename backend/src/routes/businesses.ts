@@ -56,6 +56,7 @@ router.post(
     body("email").isEmail().normalizeEmail().withMessage("Valid email is required"),
     body("phone").trim().notEmpty().withMessage("Phone is required"),
     body("address").trim().notEmpty().withMessage("Address is required"),
+    body("website").optional({ checkFalsy: true }).isURL().withMessage("Must be a valid URL"),
     body("googleBusinessUrl").optional({ checkFalsy: true }).isURL().withMessage("Must be a valid URL"),
     body("allowTipping").optional().isBoolean().withMessage("Allow tipping must be a boolean"),
   ],
@@ -85,12 +86,12 @@ router.post(
         });
       }
 
-      const { name, email, phone, address, googleBusinessUrl, allowTipping } = req.body;
+      const { name, email, phone, address, website, googleBusinessUrl, allowTipping } = req.body;
 
       // Use raw query to handle allowTipping field until Prisma client is properly updated
       const businessResult = await prisma.$queryRaw`
-        INSERT INTO businesses (id, "ownerId", name, email, phone, address, "googleBusinessUrl", "allowTipping", "createdAt", "updatedAt")
-        VALUES (gen_random_uuid(), ${req.userId}, ${name}, ${email}, ${phone}, ${address}, ${googleBusinessUrl || null}, ${allowTipping || false}, NOW(), NOW())
+        INSERT INTO businesses (id, "ownerId", name, email, phone, address, website, "googleBusinessUrl", "allowTipping", "createdAt", "updatedAt")
+        VALUES (gen_random_uuid(), ${req.userId}, ${name}, ${email}, ${phone}, ${address}, ${website || null}, ${googleBusinessUrl || null}, ${allowTipping || false}, NOW(), NOW())
         RETURNING *
       `;
       const business = Array.isArray(businessResult) ? businessResult[0] : businessResult;
@@ -113,6 +114,7 @@ router.put(
     body("email").optional().isEmail().normalizeEmail(),
     body("phone").optional().trim().notEmpty(),
     body("address").optional().trim().notEmpty(),
+    body("website").optional({ checkFalsy: true }).isURL().withMessage("Must be a valid URL"),
     body("googleBusinessUrl").optional().custom((value: string) => {
       if (value === "" || value === null || value === undefined) return true;
       return /\S+/.test(value) && (value.startsWith("http://") || value.startsWith("https://"));
@@ -128,7 +130,7 @@ router.put(
         return res.status(400).json({ errors: errors.array() });
       }
 
-      const { name, email, phone, address, googleBusinessUrl, allowTipping } = req.body;
+      const { name, email, phone, address, website, googleBusinessUrl, allowTipping } = req.body;
 
       // Check ownership first
       const existing = await prisma.business.findFirst({
@@ -145,6 +147,7 @@ router.put(
       if (email !== undefined) updateData.email = email;
       if (phone !== undefined) updateData.phone = phone;
       if (address !== undefined) updateData.address = address;
+      if (website !== undefined) updateData.website = website || null;
       if (googleBusinessUrl !== undefined) updateData.googleBusinessUrl = googleBusinessUrl || null;
       if (allowTipping !== undefined) updateData.allowTipping = allowTipping;
 
@@ -190,7 +193,7 @@ router.get("/public/:id", async (req: AuthRequest, res: Response) => {
     // Use raw query to handle allowTipping field until Prisma client is properly updated
     const businessResult = await prisma.$queryRaw`
       SELECT 
-        b.id, b.name, b.email, b.phone, b.address, b."googleBusinessUrl", b."allowTipping", b."createdAt",
+        b.id, b.name, b.email, b.phone, b.address, b.website, b."googleBusinessUrl", b."allowTipping", b."createdAt",
         COALESCE(
           json_agg(
             json_build_object(
@@ -211,7 +214,7 @@ router.get("/public/:id", async (req: AuthRequest, res: Response) => {
         ORDER BY "createdAt" DESC
       ) m ON true
       WHERE b.id = ${id}
-      GROUP BY b.id, b.name, b.email, b.phone, b.address, b."googleBusinessUrl", b."allowTipping", b."createdAt"
+      GROUP BY b.id, b.name, b.email, b.phone, b.address, b.website, b."googleBusinessUrl", b."allowTipping", b."createdAt"
     `;
     const business = Array.isArray(businessResult) && businessResult.length > 0 ? businessResult[0] : null;
 
@@ -269,6 +272,7 @@ router.get("/menu/:publicId", async (req: AuthRequest, res: Response) => {
           'email', b.email,
           'phone', b.phone,
           'address', b.address,
+          'website', b.website,
           'googleBusinessUrl', b."googleBusinessUrl",
           'allowTipping', b."allowTipping"
         ) as business
