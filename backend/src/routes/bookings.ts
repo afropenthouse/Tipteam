@@ -33,7 +33,7 @@ router.get("/", authenticate, async (req: AuthRequest, res: Response) => {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    const profiles = await prisma.bookingProfile.findMany({
+    const profiles = await (prisma as any).bookingProfile.findMany({
       where: {
         userId: req.userId
       },
@@ -57,7 +57,7 @@ router.get("/", authenticate, async (req: AuthRequest, res: Response) => {
     });
 
     // Map to include bookingsCount for frontend
-    const profilesWithCount = profiles.map(p => ({
+    const profilesWithCount = profiles.map((p: any) => ({
       ...p,
       bookingsCount: p._count.bookings
     }));
@@ -96,7 +96,7 @@ router.get("/:id", authenticate, async (req: AuthRequest, res: Response) => {
 router.get("/public/:publicId", async (req: Request, res: Response) => {
   try {
     const publicId = getId(req.params.publicId);
-    const profile = await prisma.bookingProfile.findUnique({
+    const profile = await (prisma as any).bookingProfile.findUnique({
       where: { publicId },
       include: {
         pictures: true,

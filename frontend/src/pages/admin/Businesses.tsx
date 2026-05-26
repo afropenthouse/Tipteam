@@ -113,6 +113,7 @@ export default function AdminBusinesses() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Business</TableHead>
+                    <TableHead>Website</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Phone</TableHead>
                     <TableHead>Menus</TableHead>
@@ -137,6 +138,20 @@ export default function AdminBusinesses() {
                             <span className="font-bold">{b.name}</span>
                             <span className="text-[10px] text-muted-foreground truncate max-w-[150px]">{b.address}</span>
                           </div>
+                        </TableCell>
+                        <TableCell>
+                          {b.website ? (
+                            <a 
+                              href={b.website.startsWith('http') ? b.website : `https://${b.website}`} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-xs text-primary hover:underline truncate max-w-[120px] block"
+                            >
+                              {b.website.replace(/^https?:\/\//, '')}
+                            </a>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">-</span>
+                          )}
                         </TableCell>
                         <TableCell className="text-xs">{b.email}</TableCell>
                         <TableCell className="text-xs">{b.phone}</TableCell>
