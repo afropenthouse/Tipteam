@@ -212,7 +212,20 @@ export default function PublicBookingPage() {
             <Card className="shadow-sm border-none bg-transparent">
               <CardContent className="space-y-6 p-0">
                 <div className="space-y-2">
-                  <h1 className="text-4xl font-black tracking-tight">{profile.name}</h1>
+                  <div className="flex flex-wrap justify-between items-start gap-4">
+                    <h1 className="text-4xl font-black tracking-tight">{profile.name}</h1>
+                    {profile.business?.website && (
+                      <Button asChild variant="outline" size="sm">
+                        <a 
+                          href={profile.business.website.startsWith('http') ? profile.business.website : `https://${profile.business.website}`} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                        >
+                          Visit Website
+                        </a>
+                      </Button>
+                    )}
+                  </div>
                   <p className="text-muted-foreground flex items-center text-lg">
                     <MapPin className="h-5 w-5 mr-2 text-primary" />
                     {profile.location}

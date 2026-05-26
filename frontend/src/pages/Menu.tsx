@@ -10,6 +10,7 @@ export default function Menu() {
   const [menuExists, setMenuExists] = useState(false);
   const [menuName, setMenuName] = useState("Menu");
   const [googleBusinessUrl, setGoogleBusinessUrl] = useState<string | null>(null);
+  const [website, setWebsite] = useState<string | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -31,6 +32,7 @@ export default function Menu() {
         setMenuName(data.menu.name || "Menu");
         setMenuExists(true);
         setGoogleBusinessUrl(data.menu.business?.googleBusinessUrl || null);
+        setWebsite(data.menu.business?.website || null);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load menu");
       } finally {
@@ -67,13 +69,40 @@ export default function Menu() {
   if (!menuExists || !pdfUrl) return null;
 
   return (
-    <div className="min-h-screen bg-white">
-      <iframe 
-        src={`/pdfjs/web/viewer.html?file=${encodeURIComponent(pdfUrl)}`}
-        className="w-full h-screen border-0 block"
-        style={{ height: '100dvh' }}
-        title={menuName}
-      />
+    <div className="min-h-screen bg-white flex flex-col">
+      {(website || googleBusinessUrl) && (
+        <div className="bg-white border-b px-4 py-2 flex items-center justify-between sticky top-0 z-10">
+          <span className="text-sm font-medium truncate">{menuName}</span>
+          <div className="flex gap-2">
+            {website && (
+              <Button asChild variant="outline" size="sm" className="h-8">
+                <a 
+                  href={website.startsWith('http') ? website : `https://${website}`} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                >
+                  Website
+                </a>
+              </Button>
+            )}
+            {googleBusinessUrl && (
+              <Button asChild variant="outline" size="sm" className="h-8">
+                <a href={googleBusinessUrl} target="_blank" rel="noopener noreferrer">
+                  Rate
+                </a>
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+      <div className="flex-1 w-full h-full">
+        <iframe 
+          src={`/pdfjs/web/viewer.html?file=${encodeURIComponent(pdfUrl)}`}
+          className="w-full h-full border-0 block"
+          style={{ height: (website || googleBusinessUrl) ? 'calc(100dvh - 49px)' : '100dvh' }}
+          title={menuName}
+        />
+      </div>
     </div>
   );
 }

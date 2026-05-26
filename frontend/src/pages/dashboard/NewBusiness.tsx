@@ -29,7 +29,7 @@ export default function NewBusiness() {
   const user = useCurrentUser();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({ name: "", email: "", phone: "", address: "", googleBusinessUrl: "", allowTipping: false });
+  const [form, setForm] = useState({ name: "", email: "", phone: "", address: "", website: "", googleBusinessUrl: "", allowTipping: false });
   const [subscriptionStatus, setSubscriptionStatus] = useState<any>(null);
   const [checkingSubscription, setCheckingSubscription] = useState(true);
 
@@ -111,6 +111,7 @@ export default function NewBusiness() {
       email: form.email || undefined,
       phone: form.phone,
       address: form.address,
+      website: form.website || undefined,
       googleBusinessUrl: form.googleBusinessUrl || undefined,
       allowTipping: form.allowTipping,
     };
@@ -265,12 +266,21 @@ export default function NewBusiness() {
           <Textarea required value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
         </div>
         <div className="space-y-2">
+          <Label>Website (optional)</Label>
+          <Input 
+            type="url"
+            value={form.website} 
+            onChange={(e) => setForm({ ...form, website: e.target.value })} 
+            placeholder="https://example.com"
+          />
+        </div>
+        <div className="space-y-2">
           <Label>Google Business URL (optional)</Label>
           <Input 
-            type="url" 
-            placeholder="https://maps.google.com/..."
+            type="url"
             value={form.googleBusinessUrl} 
             onChange={(e) => setForm({ ...form, googleBusinessUrl: e.target.value })} 
+            placeholder="https://g.page/..."
           />
         </div>
         <div className="flex items-center space-x-3 p-4 border rounded-lg bg-muted/30">

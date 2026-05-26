@@ -241,6 +241,21 @@ export default function Rate() {
                     Tip a team member
                   </Button>
                 )}
+                {business.website && (
+                  <Button
+                    asChild
+                    className="w-full bg-gradient-primary shadow-elegant text-base py-6"
+                  >
+                    <a
+                      href={business.website.startsWith('http') ? business.website : `https://${business.website}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2"
+                    >
+                      Visit Website
+                    </a>
+                  </Button>
+                )}
                 {business.menus && business.menus.length > 0 && (
                   <div className="space-y-2">
                     {business.menus.map((menu) => (
@@ -493,6 +508,15 @@ export default function Rate() {
               <p className="mt-2 text-sm text-muted-foreground">
                 Your feedback helps {business.name} get better every day.
               </p>
+              {business.website && (
+                <div className="mt-6">
+                  <Button asChild variant="outline" size="sm">
+                    <a href={business.website.startsWith('http') ? business.website : `https://${business.website}`} target="_blank" rel="noopener noreferrer">
+                      Visit our website
+                    </a>
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -43,7 +43,8 @@ router.get("/", authenticate, async (req: AuthRequest, res: Response) => {
         business: {
           select: {
             id: true,
-            name: true
+            name: true,
+            website: true
           }
         },
         _count: {
@@ -109,7 +110,8 @@ router.get("/public/:publicId", async (req: Request, res: Response) => {
         business: {
           select: {
             id: true,
-            name: true
+            name: true,
+            website: true
           }
         }
       }
