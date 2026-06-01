@@ -106,7 +106,7 @@ export default function CheckIn() {
   );
 
   const handleAddRow = () => {
-    setCustomerRows([...customerRows, { name: "", phone: "" }]);
+    setCustomerRows((prev) => [...prev, { name: "", phone: "" }]);
   };
 
   const handleRemoveRow = (index: number) => {
@@ -323,37 +323,44 @@ export default function CheckIn() {
                   </div>
                 )}
                 
-                {customerRows.map((row, index) => (
-                  <div key={index} className="flex items-end gap-3 p-3 rounded-lg border bg-muted/30">
-                    <div className="flex-1 space-y-1.5">
-                      <Label className="text-xs">Name</Label>
-                      <Input 
-                        placeholder="John Doe" 
-                        value={row.name}
-                        onChange={(e) => handleUpdateRow(index, "name", e.target.value)}
-                      />
-                    </div>
-                    <div className="flex-1 space-y-1.5">
-                      <Label className="text-xs">Phone Number</Label>
-                      <Input 
-                        placeholder="+234 800 000 0000" 
-                        value={row.phone}
-                        onChange={(e) => handleUpdateRow(index, "phone", e.target.value)}
-                      />
-                    </div>
-                    {customerRows.length > 1 && (
-                      <Button 
-                        type="button" 
-                        variant="ghost" 
-                        size="icon" 
-                        className="text-destructive h-10 w-10" 
-                        onClick={() => handleRemoveRow(index)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
+                <div className="border rounded-lg overflow-hidden bg-muted/10">
+                  <div className="grid grid-cols-[1fr,1fr,40px] gap-2 p-2 bg-muted/30 border-b">
+                    <Label className="text-[10px] text-muted-foreground uppercase font-bold px-1">Name</Label>
+                    <Label className="text-[10px] text-muted-foreground uppercase font-bold px-1">Phone Number</Label>
+                    <div className="w-8"></div>
                   </div>
-                ))}
+                  <div className="divide-y">
+                    {customerRows.map((row, index) => (
+                      <div key={index} className="grid grid-cols-[1fr,1fr,40px] gap-2 p-2 items-center hover:bg-muted/5 transition-colors">
+                        <Input 
+                          placeholder="John Doe" 
+                          value={row.name}
+                          onChange={(e) => handleUpdateRow(index, "name", e.target.value)}
+                          className="h-8 text-sm px-2 border-none bg-transparent shadow-none focus-visible:ring-1 focus-visible:ring-offset-0"
+                        />
+                        <Input 
+                          placeholder="+234 800 000 0000" 
+                          value={row.phone}
+                          onChange={(e) => handleUpdateRow(index, "phone", e.target.value)}
+                          className="h-8 text-sm px-2 border-none bg-transparent shadow-none focus-visible:ring-1 focus-visible:ring-offset-0"
+                        />
+                        {customerRows.length > 1 ? (
+                          <Button 
+                            type="button" 
+                            variant="ghost" 
+                            size="icon" 
+                            className="text-destructive h-8 w-8 hover:bg-destructive/10" 
+                            onClick={() => handleRemoveRow(index)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        ) : (
+                          <div className="w-8 h-8"></div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
 
               <DialogFooter>
