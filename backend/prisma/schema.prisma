@@ -50,6 +50,7 @@ model Business {
   updatedAt         DateTime         @updatedAt
   googleBusinessUrl String?
   allowTipping      Boolean          @default(false)
+  allowCheckin      Boolean          @default(false)
   bookingProfiles   BookingProfile[] @relation("BusinessBookingProfiles")
   owner             User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   feedbacks         Feedback[]
@@ -69,6 +70,7 @@ model Customer {
   name               String
   phone              String
   subscriptionStatus CustomerSubscriptionStatus @default(PENDING)
+  activationExpiry   DateTime?
   createdAt          DateTime                   @default(now())
   updatedAt          DateTime                   @updatedAt
   business           Business                   @relation(fields: [businessId], references: [id], onDelete: Cascade)

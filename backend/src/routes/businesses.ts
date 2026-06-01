@@ -59,6 +59,7 @@ router.post(
     body("website").optional({ checkFalsy: true }).isURL().withMessage("Must be a valid URL"),
     body("googleBusinessUrl").optional({ checkFalsy: true }).isURL().withMessage("Must be a valid URL"),
     body("allowTipping").optional().isBoolean().withMessage("Allow tipping must be a boolean"),
+    body("allowCheckin").optional().isBoolean().withMessage("Allow checkin must be a boolean"),
   ],
   async (req: AuthRequest, res: Response) => {
     try {
@@ -86,12 +87,12 @@ router.post(
         });
       }
 
-      const { name, email, phone, address, website, googleBusinessUrl, allowTipping } = req.body;
+      const { name, email, phone, address, website, googleBusinessUrl, allowTipping, allowCheckin } = req.body;
 
-      // Use raw query to handle allowTipping field until Prisma client is properly updated
+      // Use raw query to handle allowTipping and allowCheckin fields until Prisma client is properly updated
       const businessResult = await prisma.$queryRaw`
-        INSERT INTO businesses (id, "ownerId", name, email, phone, address, website, "googleBusinessUrl", "allowTipping", "createdAt", "updatedAt")
-        VALUES (gen_random_uuid(), ${req.userId}, ${name}, ${email}, ${phone}, ${address}, ${website || null}, ${googleBusinessUrl || null}, ${allowTipping || false}, NOW(), NOW())
+        INSERT INTO businesses (id, "ownerId", name, email, phone, address, website, "googleBusinessUrl", "allowTipping", "allowCheckin", "createdAt", "updatedAt")
+        VALUES (gen_random_uuid(), ${req.userId}, ${name}, ${email}, ${phone}, ${address}, ${website || null}, ${googleBusinessUrl || null}, ${allowTipping || false}, ${allowCheckin || false}, NOW(), NOW())
         RETURNING *
       `;
       const business = Array.isArray(businessResult) ? businessResult[0] : businessResult;
@@ -120,6 +121,7 @@ router.put(
       return /\S+/.test(value) && (value.startsWith("http://") || value.startsWith("https://"));
     }).withMessage("Must be a valid URL"),
     body("allowTipping").optional().isBoolean().withMessage("Allow tipping must be a boolean"),
+    body("allowCheckin").optional().isBoolean().withMessage("Allow checkin must be a boolean"),
   ],
   async (req: AuthRequest, res: Response) => {
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
@@ -130,7 +132,7 @@ router.put(
         return res.status(400).json({ errors: errors.array() });
       }
 
-      const { name, email, phone, address, website, googleBusinessUrl, allowTipping } = req.body;
+      const { name, email, phone, address, website, googleBusinessUrl, allowTipping, allowCheckin } = req.body;
 
       // Check ownership first
       const existing = await prisma.business.findFirst({
@@ -150,6 +152,7 @@ router.put(
       if (website !== undefined) updateData.website = website || null;
       if (googleBusinessUrl !== undefined) updateData.googleBusinessUrl = googleBusinessUrl || null;
       if (allowTipping !== undefined) updateData.allowTipping = allowTipping;
+      if (allowCheckin !== undefined) updateData.allowCheckin = allowCheckin;
 
       const business = await prisma.business.update({
         where: { id },
@@ -190,10 +193,10 @@ router.get("/public/:id", async (req: AuthRequest, res: Response) => {
   try {
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
 
-    // Use raw query to handle allowTipping field until Prisma client is properly updated
+    // Use raw query to handle allowTipping and allowCheckin fields until Prisma client is properly updated
     const businessResult = await prisma.$queryRaw`
       SELECT 
-        b.id, b.name, b.email, b.phone, b.address, b.website, b."googleBusinessUrl", b."allowTipping", b."createdAt",
+        b.id, b.name, b.email, b.phone, b.address, b.website, b."googleBusinessUrl", b."allowTipping", b."allowCheckin", b."createdAt",
         COALESCE(
           json_agg(
             json_build_object(
@@ -214,7 +217,7 @@ router.get("/public/:id", async (req: AuthRequest, res: Response) => {
         ORDER BY "createdAt" DESC
       ) m ON true
       WHERE b.id = ${id}
-      GROUP BY b.id, b.name, b.email, b.phone, b.address, b.website, b."googleBusinessUrl", b."allowTipping", b."createdAt"
+      GROUP BY b.id, b.name, b.email, b.phone, b.address, b.website, b."googleBusinessUrl", b."allowTipping", b."allowCheckin", b."createdAt"
     `;
     const business = Array.isArray(businessResult) && businessResult.length > 0 ? businessResult[0] : null;
 
@@ -274,7 +277,8 @@ router.get("/menu/:publicId", async (req: AuthRequest, res: Response) => {
           'address', b.address,
           'website', b.website,
           'googleBusinessUrl', b."googleBusinessUrl",
-          'allowTipping', b."allowTipping"
+          'allowTipping', b."allowTipping",
+          'allowCheckin', b."allowCheckin"
         ) as business
       FROM menus m
       JOIN businesses b ON m."businessId" = b.id

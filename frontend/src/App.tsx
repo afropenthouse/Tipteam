@@ -26,6 +26,7 @@ import StaffSettlement from "./pages/dashboard/StaffSettlement.tsx";
 import ServicesPage from "./pages/dashboard/ServicesPage.tsx";
 import ServiceSettlement from "./pages/dashboard/ServiceSettlement.tsx";
 import Rate from "./pages/customer/Rate.tsx";
+import PublicCheckIn from "./pages/customer/PublicCheckIn.tsx";
 import PublicSettlementForm from "./pages/customer/PublicSettlementForm.tsx";
 import Menu from "./pages/Menu.tsx";
 import MenuQRCode from "./pages/dashboard/MenuQRCode.tsx";
@@ -59,6 +60,7 @@ const App = () => (
           <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/rate/:businessId" element={<Rate />} />
+          <Route path="/checkin/:businessId" element={<PublicCheckIn />} />
           <Route path="/settle/:businessId" element={<PublicSettlementForm />} />
           <Route path="/menu/:publicId" element={<Menu />} />
           <Route path="/menu-qr-generator" element={<MenuQRGenerator />} />

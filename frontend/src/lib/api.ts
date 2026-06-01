@@ -130,6 +130,7 @@ export type Business = {
   website?: string;
   googleBusinessUrl?: string;
   allowTipping?: boolean;
+  allowCheckin?: boolean;
   menuQrCode?: string;
   createdAt: string;
   updatedAt?: string;
@@ -857,6 +858,7 @@ export type Customer = {
   name: string;
   phone: string;
   subscriptionStatus: "ACTIVE" | "INACTIVE" | "PENDING";
+  activationExpiry?: string;
   createdAt: string;
   updatedAt: string;
   lastCheckIn?: string | null;
@@ -873,16 +875,37 @@ export const checkInApi = {
     const { customers } = await api.get<{ customers: Customer[] }>("/checkin/customers");
     return customers;
   },
-  async addCustomer(data: { businessId: string; customers: { name: string; phone: string }[] }): Promise<Customer[]> {
+  async addCustomer(data: { 
+    businessId: string; 
+    customers: { name: string; phone: string }[];
+    status?: "ACTIVE" | "PENDING";
+    expiryDate?: string;
+  }): Promise<Customer[]> {
     const { customers } = await api.post<{ customers: Customer[] }>("/checkin/customers", data);
     return customers;
   },
-  async activateCustomer(id: string): Promise<Customer> {
-    const { customer } = await api.put<{ customer: Customer }>(`/checkin/customers/${id}/activate`, {});
+  async activateCustomer(id: string, expiryDate?: string): Promise<Customer> {
+    const { customer } = await api.put<{ customer: Customer }>(`/checkin/customers/${id}/activate`, { expiryDate });
     return customer;
+  },
+  async deactivateCustomer(id: string): Promise<Customer> {
+    const { customer } = await api.put<{ customer: Customer }>(`/checkin/customers/${id}/deactivate`, {});
+    return customer;
+  },
+  async bulkUpdateStatus(ids: string[], status: "ACTIVE" | "INACTIVE", expiryDate?: string): Promise<void> {
+    await api.post("/checkin/customers/bulk-status", { ids, status, expiryDate });
   },
   async recordCheckIn(id: string): Promise<CheckIn> {
     const { checkIn } = await api.post<{ checkIn: CheckIn }>(`/checkin/customers/${id}/checkin`, {});
     return checkIn;
+  },
+  async deleteCustomer(id: string): Promise<void> {
+    await api.delete(`/checkin/customers/${id}`);
+  },
+  async clearCustomerHistory(id: string): Promise<void> {
+    await api.delete(`/checkin/customers/${id}/history`);
+  },
+  async publicCheckIn(businessId: string, name: string, phone: string): Promise<{ success: boolean; message: string }> {
+    return await api.post<{ success: boolean; message: string }>(`/checkin/public/${businessId}`, { name, phone });
   },
 };

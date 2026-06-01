@@ -31,7 +31,7 @@ export default function NewBusiness() {
   const user = useCurrentUser();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({ name: "", email: "", phone: "", address: "", website: "", googleBusinessUrl: "", allowTipping: false });
+  const [form, setForm] = useState({ name: "", email: "", phone: "", address: "", website: "", googleBusinessUrl: "", allowTipping: false, allowCheckin: false });
   const [subscriptionStatus, setSubscriptionStatus] = useState<any>(null);
   const [checkingSubscription, setCheckingSubscription] = useState(true);
 
@@ -116,6 +116,7 @@ export default function NewBusiness() {
       website: form.website || undefined,
       googleBusinessUrl: form.googleBusinessUrl || undefined,
       allowTipping: form.allowTipping,
+      allowCheckin: form.allowCheckin,
     };
     
     console.log("Submitting cleaned form data:", cleanedForm);
@@ -244,6 +245,21 @@ export default function NewBusiness() {
             </Label>
             <p className="text-xs text-muted-foreground">
               When enabled, customers can tip individual team members
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center space-x-3 p-4 border rounded-lg bg-muted/30">
+          <Switch
+            id="allow-checkin"
+            checked={form.allowCheckin}
+            onCheckedChange={(checked) => setForm({ ...form, allowCheckin: checked })}
+          />
+          <div className="space-y-1">
+            <Label htmlFor="allow-checkin" className="text-sm font-medium cursor-pointer">
+              Allow checkin
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              When enabled, customers can check in to your business
             </p>
           </div>
         </div>

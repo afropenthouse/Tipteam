@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
-import { Star, Check, ArrowLeft, Loader2, Sparkles } from "lucide-react";
+import { useParams, useSearchParams, Link } from "react-router-dom";
+import { Star, Check, ArrowLeft, Loader2, Sparkles, UserCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -268,6 +268,17 @@ export default function Rate() {
                     Tip a team member
                   </Button>
                 )}
+                {business.allowCheckin && (
+                  <Button
+                    asChild
+                    className="w-full bg-gradient-primary shadow-elegant text-base py-6"
+                  >
+                    <Link to={`/checkin/${businessId}`} className="flex items-center justify-center gap-2">
+                      <UserCheck className="h-5 w-5" />
+                      Member Check-In
+                    </Link>
+                  </Button>
+                )}
                 {business.website && (
                   <Button
                     asChild
@@ -286,9 +297,8 @@ export default function Rate() {
                 )}
                 <Button
                   onClick={handleViewServices}
-                  variant="outline"
                   disabled={loadingServices}
-                  className="w-full shadow-elegant text-base py-6"
+                  className="w-full bg-gradient-primary shadow-elegant text-base py-6"
                 >
                   {loadingServices ? (
                     <Loader2 className="h-5 w-5 animate-spin" />
