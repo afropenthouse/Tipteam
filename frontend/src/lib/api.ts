@@ -127,6 +127,7 @@ export type Business = {
   email: string;
   phone: string;
   address: string;
+  website?: string;
   googleBusinessUrl?: string;
   allowTipping?: boolean;
   menuQrCode?: string;
@@ -498,7 +499,115 @@ export const getUserSubscriptions = async () => {
 };
 
 export const cancelSubscription = async (subscriptionId: string) => {
-  return api.patch<{ subscription: any }>(`/subscriptions/${subscriptionId}/cancel`);
+  return api.patch<{ message: string }>(`/subscriptions/${subscriptionId}/cancel`);
+};
+
+// Settlement API
+export type Staff = {
+  id: string;
+  businessId: string;
+  name: string;
+  role: string;
+  commission: number;
+  createdAt: string;
+};
+
+export type Service = {
+  id: string;
+  businessId: string;
+  name: string;
+  amount: number;
+  createdAt: string;
+};
+
+export type Receipt = {
+  id: string;
+  businessId: string;
+  staffId: string;
+  serviceId: string;
+  amount: number;
+  date: string;
+  imageUrl?: string;
+  staffName?: string;
+  serviceName?: string;
+  staff?: { name: string };
+  service?: { name: string };
+  createdAt: string;
+};
+
+export const settlementApi = {
+  // Staff
+  async getStaff(businessId: string): Promise<Staff[]> {
+    const { staff } = await api.get<{ staff: Staff[] }>(`/settlement/${businessId}/staff`);
+    return staff;
+  },
+  async addStaff(businessId: string, data: Omit<Staff, "id" | "businessId" | "createdAt">): Promise<Staff> {
+    const { staff } = await api.post<{ staff: Staff }>(`/settlement/${businessId}/staff`, data);
+    return staff;
+  },
+  async deleteStaff(id: string): Promise<void> {
+    await api.delete(`/settlement/staff/${id}`);
+  },
+  async updateStaff(id: string, data: Partial<Omit<Staff, "id" | "businessId" | "createdAt">>): Promise<Staff> {
+    const { staff } = await api.put<{ staff: Staff }>(`/settlement/staff/${id}`, data);
+    return staff;
+  },
+
+  // Services
+  async getServices(businessId: string): Promise<Service[]> {
+    const { services } = await api.get<{ services: Service[] }>(`/settlement/${businessId}/services`);
+    return services;
+  },
+  async addService(businessId: string, data: { name: string; amount: number }): Promise<Service> {
+    const { service } = await api.post<{ service: Service }>(`/settlement/${businessId}/services`, data);
+    return service;
+  },
+  async deleteService(id: string): Promise<void> {
+    await api.delete(`/settlement/services/${id}`);
+  },
+
+  // Receipts
+  async getReceipts(businessId: string): Promise<Receipt[]> {
+    const { receipts } = await api.get<{ receipts: Receipt[] }>(`/settlement/${businessId}/receipts`);
+    return receipts.map(r => ({
+      ...r,
+      staffName: r.staff?.name,
+      serviceName: r.service?.name,
+    }));
+  },
+  async addReceipt(businessId: string, data: Omit<Receipt, "id" | "businessId" | "createdAt" | "staffName" | "serviceName" | "staff" | "service">): Promise<Receipt> {
+    const { receipt } = await api.post<{ receipt: Receipt }>(`/settlement/${businessId}/receipts`, data);
+    return {
+      ...receipt,
+      staffName: receipt.staff?.name,
+      serviceName: receipt.service?.name,
+    };
+  },
+  async deleteReceipt(id: string): Promise<void> {
+    await api.delete(`/settlement/receipts/${id}`);
+  },
+
+  // Public Methods
+  async getPublicStaff(businessId: string): Promise<Staff[]> {
+    const response = await fetch(`${API_URL}/settlement/public/${businessId}/staff`);
+    const data = await response.json();
+    return data.staff;
+  },
+  async getPublicServices(businessId: string): Promise<Service[]> {
+    const response = await fetch(`${API_URL}/settlement/public/${businessId}/services`);
+    const data = await response.json();
+    return data.services;
+  },
+  async submitPublicReceipt(businessId: string, formData: FormData): Promise<void> {
+    const response = await fetch(`${API_URL}/settlement/public/${businessId}/receipts`, {
+      method: "POST",
+      body: formData,
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || "Failed to submit receipt");
+    }
+  },
 };
 
 export const getBanks = async () => {
@@ -739,4 +848,41 @@ export const getAllBookings = async (): Promise<Booking[]> => {
 
 export const deleteBooking = async (id: string): Promise<void> => {
   await api.delete(`/bookings/appointments/${id}`);
+};
+
+// Check In API
+export type Customer = {
+  id: string;
+  businessId: string;
+  name: string;
+  phone: string;
+  subscriptionStatus: "ACTIVE" | "INACTIVE" | "PENDING";
+  createdAt: string;
+  updatedAt: string;
+  lastCheckIn?: string | null;
+};
+
+export type CheckIn = {
+  id: string;
+  customerId: string;
+  createdAt: string;
+};
+
+export const checkInApi = {
+  async getCustomers(): Promise<Customer[]> {
+    const { customers } = await api.get<{ customers: Customer[] }>("/checkin/customers");
+    return customers;
+  },
+  async addCustomer(data: { businessId: string; customers: { name: string; phone: string }[] }): Promise<Customer[]> {
+    const { customers } = await api.post<{ customers: Customer[] }>("/checkin/customers", data);
+    return customers;
+  },
+  async activateCustomer(id: string): Promise<Customer> {
+    const { customer } = await api.put<{ customer: Customer }>(`/checkin/customers/${id}/activate`, {});
+    return customer;
+  },
+  async recordCheckIn(id: string): Promise<CheckIn> {
+    const { checkIn } = await api.post<{ checkIn: CheckIn }>(`/checkin/customers/${id}/checkin`, {});
+    return checkIn;
+  },
 };

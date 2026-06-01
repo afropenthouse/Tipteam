@@ -114,17 +114,17 @@ export default function Overview() {
   }
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-wrap items-end justify-between gap-3">
+    <div className="space-y-6 sm:space-y-8 px-4 sm:px-0">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Overview</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Overview</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground">
             Snapshot of your businesses, feedback and tips.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
           <Select value={selectedBusiness} onValueChange={setSelectedBusiness}>
-            <SelectTrigger className="w-48">
+            <SelectTrigger className="w-full sm:w-48">
               <SelectValue placeholder="Select business" />
             </SelectTrigger>
             <SelectContent>
@@ -136,34 +136,34 @@ export default function Overview() {
               ))}
             </SelectContent>
           </Select>
-          <Button asChild className="bg-gradient-primary shadow-elegant">
+          <Button asChild className="w-full sm:w-auto bg-gradient-primary shadow-elegant">
             <Link to="/dashboard/businesses/new">Add business</Link>
           </Button>
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         {stats.map((s) => (
-          <div key={s.label} className="rounded-xl border bg-card p-5 shadow-card">
+          <div key={s.label} className="rounded-xl border bg-card p-4 sm:p-5 shadow-card">
             <div className="flex items-center justify-between">
-              <span className="text-xs uppercase tracking-wider text-muted-foreground">{s.label}</span>
-              <s.icon className="h-4 w-4 text-muted-foreground" />
+              <span className="text-[10px] sm:text-xs uppercase tracking-wider text-muted-foreground">{s.label}</span>
+              <s.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
             </div>
-            <div className="mt-3 text-2xl font-bold">{s.value}</div>
+            <div className="mt-2 sm:mt-3 text-lg sm:text-2xl font-bold truncate">{s.value}</div>
           </div>
         ))}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-xl border bg-card p-6 shadow-card">
+        <div className="rounded-xl border bg-card p-4 sm:p-6 shadow-card overflow-hidden">
           <div className="flex items-center justify-between">
-            <h2 className="font-semibold">Your businesses</h2>
-            <Link to="/dashboard/businesses" className="text-xs text-primary hover:underline">
-              View all <ArrowRight className="ml-0.5 inline h-3 w-3" />
+            <h2 className="font-semibold text-sm sm:text-base">Your businesses</h2>
+            <Link to="/dashboard/businesses" className="text-[10px] sm:text-xs text-primary hover:underline flex items-center">
+              View all <ArrowRight className="ml-0.5 h-3 w-3" />
             </Link>
           </div>
           {filteredBusinesses.length === 0 ? (
-            <div className="mt-6 rounded-lg border border-dashed p-8 text-center">
+            <div className="mt-6 rounded-lg border border-dashed p-6 sm:p-8 text-center">
               <p className="text-sm text-muted-foreground">
                 {selectedBusiness === "all" ? "No businesses yet." : "No businesses found."}
               </p>
@@ -174,24 +174,24 @@ export default function Overview() {
           ) : (
             <ul className="mt-4 divide-y">
               {filteredBusinesses.slice(0, 5).map((b) => (
-                <li key={b.id} className="flex items-center justify-between py-3">
-                  <div>
-                    <Link to={`/dashboard/businesses/${b.id}`} className="font-medium hover:text-primary">
+                <li key={b.id} className="flex items-center justify-between py-3 gap-2">
+                  <div className="min-w-0 flex-1">
+                    <Link to={`/dashboard/businesses/${b.id}`} className="font-medium text-sm sm:text-base hover:text-primary truncate block">
                       {b.name}
                     </Link>
-                    <p className="text-xs text-muted-foreground">{b.address}</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground truncate">{b.address}</p>
                   </div>
-                  <span className="text-xs text-muted-foreground">{feedbackCountByBusiness[b.id] || 0} reviews</span>
+                  <span className="text-[10px] sm:text-xs text-muted-foreground shrink-0">{feedbackCountByBusiness[b.id] || 0} reviews</span>
                 </li>
               ))}
             </ul>
           )}
         </div>
 
-        <div className="rounded-xl border bg-card p-6 shadow-card">
-          <h2 className="font-semibold">Recent feedback</h2>
+        <div className="rounded-xl border bg-card p-4 sm:p-6 shadow-card overflow-hidden">
+          <h2 className="font-semibold text-sm sm:text-base">Recent feedback</h2>
           {filteredFeedback.length === 0 ? (
-            <p className="mt-6 text-sm text-muted-foreground">
+            <p className="mt-6 text-sm text-muted-foreground text-center">
               {selectedBusiness === "all" 
                 ? "No reviews yet. Share your QR code."
                 : "No reviews for this business yet."
@@ -201,22 +201,22 @@ export default function Overview() {
             <ul className="mt-4 space-y-3">
               {filteredFeedback.slice(0, 5).map((f) => (
                 <li key={f.id} className="rounded-lg bg-muted/50 p-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-0.5 sm:gap-1">
                       {Array.from({ length: 5 }).map((_, i) => (
                         <Star
                           key={i}
-                          className={`h-3.5 w-3.5 ${i < f.rating ? "fill-warning text-warning" : "text-muted-foreground/30"}`}
+                          className={`h-3 w-3 sm:h-3.5 sm:w-3.5 ${i < f.rating ? "fill-warning text-warning" : "text-muted-foreground/30"}`}
                         />
                       ))}
                     </div>
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-[10px] sm:text-xs text-muted-foreground shrink-0">
                       {new Date(f.createdAt).toLocaleDateString()}
                     </span>
                   </div>
-                  {f.experience && <p className="mt-1 text-sm">{f.experience}</p>}
+                  {f.experience && <p className="mt-1.5 text-xs sm:text-sm line-clamp-2">{f.experience}</p>}
                   {f.phone && (
-                    <p className="mt-1 text-xs text-muted-foreground">
+                    <p className="mt-1 text-[10px] sm:text-xs text-muted-foreground">
                       Phone: {f.phone}
                     </p>
                   )}

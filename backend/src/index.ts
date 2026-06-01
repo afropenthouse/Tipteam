@@ -1,6 +1,7 @@
+import "dotenv/config";
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
+
 import authRoutes from "./routes/auth.js";
 import businessRoutes from "./routes/businesses.js";
 import bookingRoutes from "./routes/bookings.js";
@@ -8,9 +9,9 @@ import feedbackRoutes from "./routes/feedback.js";
 import withdrawalRoutes from "./routes/withdrawals.js";
 import paystackRoutes from "./routes/paystack.js";
 import subscriptionRoutes from "./routes/subscriptions.js";
+import settlementRoutes from "./routes/settlement.js";
+import checkinRoutes from "./routes/checkin.js";
 import adminRoutes from "./routes/admin/index.js";
-
-dotenv.config();
 
 const app = express();
 
@@ -45,7 +46,14 @@ app.use("/api/feedback", feedbackRoutes);
 app.use("/api/withdrawals", withdrawalRoutes);
 app.use("/api/paystack", paystackRoutes);
 app.use("/api/subscriptions", subscriptionRoutes);
+app.use("/api/settlement", settlementRoutes);
+app.use("/api/checkin", checkinRoutes);
 app.use("/api/admin", adminRoutes);
+
+console.log("Final Cloudinary Config Check:", {
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY ? "Present" : "Missing"
+});
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Crown, Lock, CreditCard } from "lucide-react";
+import { Crown, Lock, CreditCard, Sparkles } from "lucide-react";
 import { createBusiness, useCurrentUser } from "@/lib/store";
 import { toast } from "@/hooks/use-toast";
 import { getSubscriptionStatus, getSubscriptionPlans } from "@/lib/api";
@@ -16,14 +16,16 @@ import { useQuery } from "@tanstack/react-query";
 import { initializeSubscriptionPayment, loadPaystackScript } from "@/lib/paystack";
 
 const formatPlanName = (planType: string) => {
-  const planMap: Record<string, string> = {
-    "THREE_MONTHS": "3 Months",
-    "SIX_MONTHS": "6 Months",
-    "NINE_MONTHS": "9 Months",
-    "TWELVE_MONTHS": "12 Months"
+    const planMap: Record<string, string> = {
+      "BASIC": "Basic Plan",
+      "PREMIUM": "Premium Plan",
+      "THREE_MONTHS": "3 Months",
+      "SIX_MONTHS": "6 Months", 
+      "NINE_MONTHS": "9 Months",
+      "TWELVE_MONTHS": "12 Months"
+    };
+    return planMap[planType] || planType.replace(/_/g, " ");
   };
-  return planMap[planType] || planType.replace(/_/g, " ");
-};
 
 export default function NewBusiness() {
   const user = useCurrentUser();
@@ -147,85 +149,32 @@ export default function NewBusiness() {
         <p className="mt-1 text-sm text-muted-foreground">Each business gets its own QR code and wallet.</p>
 
         <Card className="mt-6">
-          <CardContent className="p-6">
-            <div className="space-y-6">
-              <div className="text-center">
-                <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-                  <Crown className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <h3 className="font-semibold mb-2">Choose Your Plan</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Select a subscription plan to start creating businesses
-                  </p>
-                </div>
-              </div>
-              
-              {plansData?.plans && (
-                <RadioGroup value={selectedPlan} onValueChange={handlePlanSelection}>
-                  <div className="space-y-3">
-                    {plansData.plans.map((plan: any) => (
-                      <div key={plan.type} className="flex items-center space-x-3 rounded-lg border p-4 hover:bg-muted/50 cursor-pointer">
-                        <RadioGroupItem value={plan.type} id={plan.type} />
-                        <div className="flex-1">
-                          <label htmlFor={plan.type} className="flex items-center justify-between cursor-pointer">
-                            <div className="font-medium">
-                              {formatPlanName(plan.type)}
-                            </div>
-                            <div className="text-right">
-                              <div className="font-bold">₦{plan.priceNGN.toLocaleString()}</div>
-                              <div className="text-sm text-muted-foreground">₦{(plan.priceNGN / plan.duration).toLocaleString()}/month</div>
-                            </div>
-                          </label>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </RadioGroup>
-              )}
-              
-                {selectedPlan && (
-                  <div className="bg-muted/50 rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-medium">
-                        {formatPlanName(selectedPlan)}
-                      </span>
-                      <span className="font-bold">
-                        ₦{plansData?.plans.find((p: any) => p.type === selectedPlan)?.priceNGN.toLocaleString()}
-                      </span>
-                    </div>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      One-time payment for {plansData?.plans.find((p: any) => p.type === selectedPlan)?.duration} months access
-                    </p>
-                  
-                  <div className="flex gap-2">
-                    <Button 
-                      variant="outline" 
-                      onClick={() => navigate(-1)}
-                      className="flex-1"
-                    >
-                      Back
-                    </Button>
-                    <Button 
-                      className="flex-1"
-                      onClick={handlePayment}
-                      disabled={paymentLoading}
-                    >
-                      {paymentLoading ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                          Processing...
-                        </>
-                      ) : (
-                        <>
-                          <CreditCard className="h-4 w-4 mr-2" />
-                          Pay Now
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              )}
+          <CardContent className="p-8 text-center">
+            <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-6">
+              <Crown className="h-8 w-8 text-blue-600" />
+            </div>
+            <h3 className="text-xl font-bold mb-3">Subscription Required</h3>
+            <p className="text-gray-600 mb-8 max-w-sm mx-auto">
+              You need an active subscription to create and manage businesses. 
+              Choose a plan that fits your needs.
+            </p>
+            
+            <div className="flex flex-col gap-3">
+              <Button 
+                size="lg"
+                className="bg-gradient-primary shadow-elegant h-12 text-base font-semibold"
+                onClick={() => navigate("/dashboard/subscriptions")}
+              >
+                <Sparkles className="h-5 w-5 mr-2" />
+                Browse Subscription Plans
+              </Button>
+              <Button 
+                variant="ghost" 
+                onClick={() => navigate(-1)}
+                className="text-gray-500"
+              >
+                Back to Dashboard
+              </Button>
             </div>
           </CardContent>
         </Card>

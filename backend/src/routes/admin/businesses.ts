@@ -9,7 +9,7 @@ router.get("/", adminAuth, async (req: AdminRequest, res: Response) => {
   try {
     const businesses = await prisma.$queryRaw`
       SELECT 
-        b.id, b.name, b.email, b.phone, b.address, b."googleBusinessUrl", b."allowTipping",
+        b.id, b.name, b.email, b.phone, b.address, b.website, b."googleBusinessUrl", b."allowTipping",
         b."createdAt", b."updatedAt",
         o.id as "ownerId", o."fullName" as "ownerName", o.email as "ownerEmail",
         (SELECT COUNT(*) FROM menus WHERE "businessId" = b.id) as "menuCount",

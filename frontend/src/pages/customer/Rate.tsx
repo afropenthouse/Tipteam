@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
-import { Star, Check } from "lucide-react";
+import { Star, Check, ArrowLeft, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -14,17 +14,21 @@ import {
   verifyPayment,
 } from "@/lib/store";
 import { toast } from "@/hooks/use-toast";
-import type { Business } from "@/lib/api";
+import { settlementApi, type Business, type Service } from "@/lib/api";
 
 const TIP_PRESETS = [1000, 2000, 5000, 10000];
 
-type Step = "start" | "rating" | "experience" | "phone" | "tip" | "email" | "done";
+const fmtNGN = (n: number) => `₦${n.toLocaleString()}`;
+
+type Step = "start" | "rating" | "experience" | "phone" | "tip" | "email" | "services" | "done";
 
 export default function Rate() {
   const { businessId } = useParams<{ businessId: string }>();
   const [searchParams] = useSearchParams();
   const [business, setBusiness] = useState<Business | null>(null);
+  const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingServices, setLoadingServices] = useState(false);
 
   const [step, setStep] = useState<Step>("start");
   const [rating, setRating] = useState(0);
@@ -39,11 +43,34 @@ export default function Rate() {
 
   const paymentReference = searchParams.get("reference") || searchParams.get("trxref");
 
+  const handleViewServices = async () => {
+    if (!businessId) return;
+    setLoadingServices(true);
+    try {
+      const data = await settlementApi.getPublicServices(businessId);
+      setServices(data || []);
+      setStep("services");
+    } catch (err) {
+      console.error(err);
+      toast({
+        title: "Error",
+        description: "Failed to load services. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingServices(false);
+    }
+  };
+
   const progressPercent = useMemo(() => {
     const baseOrder: Step[] = ["start", "rating", "experience", "phone", "done"];
     const tipOrder: Step[] = ["start", "rating", "experience", "phone", "tip", "email", "done"];
     const order = business && business.allowTipping ? tipOrder : baseOrder;
-    return ((order.indexOf(step) + 1) / order.length) * 100;
+    
+    const currentIndex = order.indexOf(step);
+    if (currentIndex === -1) return 0; // For "services" step which is outside the main flow
+    
+    return ((currentIndex + 1) / order.length) * 100;
   }, [step, business]);
 
   // Fetch business details
@@ -244,7 +271,8 @@ export default function Rate() {
                 {business.website && (
                   <Button
                     asChild
-                    className="w-full bg-gradient-primary shadow-elegant text-base py-6"
+                    variant="outline"
+                    className="w-full shadow-elegant text-base py-6"
                   >
                     <a
                       href={business.website.startsWith('http') ? business.website : `https://${business.website}`}
@@ -256,6 +284,18 @@ export default function Rate() {
                     </a>
                   </Button>
                 )}
+                <Button
+                  onClick={handleViewServices}
+                  variant="outline"
+                  disabled={loadingServices}
+                  className="w-full shadow-elegant text-base py-6"
+                >
+                  {loadingServices ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    "View Services"
+                  )}
+                </Button>
                 {business.menus && business.menus.length > 0 && (
                   <div className="space-y-2">
                     {business.menus.map((menu) => (
@@ -496,6 +536,46 @@ export default function Rate() {
               <p className="mt-3 text-center text-[10px] text-muted-foreground">
                 Payments are securely processed by Paystack.
               </p>
+            </div>
+          )}
+
+          {step === "services" && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="flex items-center gap-4">
+                <Button variant="outline" size="sm" onClick={() => setStep("start")}>
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Back
+                </Button>
+                <h2 className="text-xl font-bold">Our Services</h2>
+              </div>
+              
+              <div className="space-y-3">
+                {services.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">No services listed yet.</p>
+                ) : (
+                  services.map((service) => (
+                    <div 
+                      key={service.id}
+                      className="flex items-center justify-between p-4 rounded-xl border bg-card shadow-sm hover:border-primary/50 transition-colors"
+                    >
+                      <div>
+                        <h3 className="font-bold text-gray-900">{service.name}</h3>
+                        <p className="text-xs text-muted-foreground">Standard Service</p>
+                      </div>
+                      <div className="text-lg font-black text-primary">
+                        {fmtNGN(service.amount)}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <Button
+                onClick={() => setStep("rating")}
+                className="w-full bg-gradient-primary shadow-elegant h-12"
+              >
+                Leave a Review
+              </Button>
             </div>
           )}
 

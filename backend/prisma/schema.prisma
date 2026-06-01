@@ -262,6 +262,8 @@ enum WithdrawalStatus {
 }
 
 enum SubscriptionPlan {
+  BASIC
+  PREMIUM
   THREE_MONTHS
   SIX_MONTHS
   NINE_MONTHS

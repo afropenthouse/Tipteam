@@ -1,39 +1,35 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Check, Crown, Calendar, CreditCard, Sparkles, Zap, Shield, Star, TrendingUp, Clock, X } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Check, Crown, Calendar, CreditCard, Sparkles, Clock, X } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { format, addMonths } from "date-fns";
 
 interface SubscriptionPlan {
   type: string;
-  duration: number;
-  price: number;
-  priceNGN: number;
+  name: string;
+  pricePerMonth: number;
+  pricePerMonthNGN: number;
   description: string;
+  durations: number[];
 }
 
 interface Subscription {
   id: string;
   planType: string;
-  duration: number;
-  price: number;
-  status: string;
   startDate: string;
   endDate: string;
+  status: string;
+  price: number;
+  duration: number;
   paystackRef?: string;
   createdAt: string;
 }
@@ -43,37 +39,38 @@ const Subscriptions = () => {
   const queryClient = useQueryClient();
   const [verifyingPayment, setVerifyingPayment] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<string>("");
+  const [selectedDuration, setSelectedDuration] = useState<number>(3);
+  const [isDurationModalOpen, setIsDurationModalOpen] = useState(false);
 
   // Handle payment verification when returning from Paystack
   useEffect(() => {
     const reference = searchParams.get('reference');
     const planType = localStorage.getItem('pending_subscription_plan');
+    const duration = localStorage.getItem('pending_subscription_duration');
     
     if (reference && planType) {
-      verifySubscriptionPayment(reference, planType);
+      verifySubscriptionPayment(reference, planType, duration ? parseInt(duration) : undefined);
     }
   }, [searchParams]);
 
-  const verifySubscriptionPayment = async (reference: string, planType: string) => {
-    setVerifyingPayment(true);
+  const verifySubscriptionPayment = async (paystackRef: string, planType: string, duration?: number) => {
     try {
-      const data = await api.post<{ success: boolean; subscription?: any; message?: string }>('/paystack/verify-subscription', {
-        reference,
-        planType
+      setVerifyingPayment(true);
+      await api.post("/paystack/verify-subscription", {
+        reference: paystackRef,
+        planType,
+        duration
       });
-
-      if (data.success) {
-        toast.success('Payment verified! Subscription activated successfully.');
-        localStorage.removeItem('pending_subscription_plan');
-        localStorage.removeItem('pending_subscription_reference');
-        queryClient.invalidateQueries({ queryKey: ["subscriptions"] });
-        queryClient.invalidateQueries({ queryKey: ["subscription-status"] });
-      } else {
-        toast.error(data.message || 'Payment verification failed. Please contact support.');
-      }
+      
+      localStorage.removeItem('pending_subscription_plan');
+      localStorage.removeItem('pending_subscription_duration');
+      localStorage.removeItem('pending_subscription_reference');
+      
+      queryClient.invalidateQueries({ queryKey: ["subscription-status"] });
+      queryClient.invalidateQueries({ queryKey: ["subscriptions"] });
+      toast.success("Subscription activated successfully!");
     } catch (error: any) {
-      console.error('Payment verification error:', error);
-      toast.error(error.response?.data?.error || 'Failed to verify payment. Please try again.');
+      toast.error(error.response?.data?.error || "Payment verification failed");
     } finally {
       setVerifyingPayment(false);
     }
@@ -87,9 +84,9 @@ const Subscriptions = () => {
     },
   });
 
-  const { data: statusData } = useQuery<{ hasActiveSubscription: boolean; subscription?: Subscription; canCreateBusiness: boolean }>({
+  const { data: statusData } = useQuery<{ hasActiveSubscription: boolean; subscription?: Subscription; canCreateBusiness: boolean; hasStaffSettlementAccess: boolean }>({
     queryKey: ["subscription-status"],
-    queryFn: async (): Promise<{ hasActiveSubscription: boolean; subscription?: Subscription; canCreateBusiness: boolean }> => {
+    queryFn: async (): Promise<{ hasActiveSubscription: boolean; subscription?: Subscription; canCreateBusiness: boolean; hasStaffSettlementAccess: boolean }> => {
       return api.get("/subscriptions/status");
     },
   });
@@ -130,12 +127,13 @@ const Subscriptions = () => {
         "/paystack/initialize-subscription",
         {
           email: user.email,
-          amount: String(selectedPlanData.price),
           planType,
+          duration: selectedDuration
         }
       );
 
       localStorage.setItem("pending_subscription_plan", planType);
+      localStorage.setItem("pending_subscription_duration", String(selectedDuration));
       localStorage.setItem("pending_subscription_reference", reference);
       
       window.location.href = authorizationUrl;
@@ -157,21 +155,10 @@ const Subscriptions = () => {
     });
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "ACTIVE":
-        return "bg-green-100 text-green-800";
-      case "EXPIRED":
-        return "bg-red-100 text-red-800";
-      case "CANCELLED":
-        return "bg-gray-100 text-gray-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
-
   const formatPlanName = (planType: string) => {
     const planMap: Record<string, string> = {
+      "BASIC": "Basic Plan",
+      "PREMIUM": "Premium Plan",
       "THREE_MONTHS": "3 Months",
       "SIX_MONTHS": "6 Months", 
       "NINE_MONTHS": "9 Months",
@@ -255,82 +242,82 @@ const Subscriptions = () => {
               </div>
               
               {/* Plan Cards */}
-              <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                {plans.map((plan, index) => {
+              <div className="grid md:grid-cols-2 gap-8 mb-8 max-w-4xl mx-auto">
+                {plans.map((plan) => {
                   const isSelected = selectedPlan === plan.type;
-                  const monthlyPrice = Math.round(plan.priceNGN / plan.duration);
-                  const isPopular = plan.duration === 9; // Make 9-month plan popular
+                  const isPremium = plan.type === "PREMIUM";
                   
                   return (
                     <Card
                       key={plan.type}
                       className={cn(
-                        "relative cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-1",
-                        isSelected ? "ring-2 ring-blue-500 shadow-lg" : "border-gray-200",
-                        isPopular && "border-blue-200 shadow-md"
+                        "relative cursor-pointer transition-all duration-300 hover:shadow-xl hover:-translate-y-1 overflow-hidden",
+                        isSelected ? "ring-2 ring-blue-500 shadow-xl scale-105 z-10" : "border-gray-200 opacity-90 grayscale-[0.2]",
+                        isPremium && "border-blue-200 shadow-md bg-gradient-to-b from-white to-blue-50/30"
                       )}
                       onClick={() => setSelectedPlan(plan.type)}
                     >
-                      {isPopular && (
-                        <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                          <Badge className="bg-blue-500 text-white px-3 py-1">
-                            <Star className="w-3 h-3 mr-1" />
-                            Popular
-                          </Badge>
+                      {isPremium && (
+                        <div className="absolute top-0 right-0">
+                          <div className="bg-blue-600 text-white text-[10px] font-bold px-8 py-1 rotate-45 translate-x-6 translate-y-2 shadow-sm">
+                            PREMIUM
+                          </div>
                         </div>
                       )}
-                      <CardHeader className="text-center pb-4">
-                        <div className="flex justify-center mb-2">
-                          <div className={cn(
-                            "w-12 h-12 rounded-full flex items-center justify-center",
-                            isSelected ? "bg-blue-100" : "bg-gray-100"
-                          )}>
-                            {plan.duration <= 3 ? (
-                              <Zap className={cn("w-6 h-6", isSelected ? "text-blue-600" : "text-gray-600")} />
-                            ) : plan.duration <= 6 ? (
-                              <TrendingUp className={cn("w-6 h-6", isSelected ? "text-blue-600" : "text-gray-600")} />
-                            ) : (
-                              <Shield className={cn("w-6 h-6", isSelected ? "text-blue-600" : "text-gray-600")} />
-                            )}
-                          </div>
-                        </div>
-                        <CardTitle className="text-lg">{formatPlanName(plan.type)}</CardTitle>
+                      <CardHeader className="text-center pb-6 pt-10">
+                        <CardTitle className="text-2xl font-bold mb-1">{plan.name}</CardTitle>
                         <div className="space-y-1">
-                          <div className="text-3xl font-bold text-gray-900">
-                            ₦{plan.priceNGN.toLocaleString()}
+                          <div className="text-4xl font-black text-gray-900">
+                            ₦{plan.pricePerMonthNGN.toLocaleString()}
                           </div>
-                          <div className="text-sm text-gray-500">
-                            ₦{monthlyPrice.toLocaleString()}/month
+                          <div className="text-sm font-bold text-blue-600 uppercase tracking-wider">
+                            Per Month
                           </div>
                         </div>
                       </CardHeader>
-                      <CardContent className="pt-0">
-                        <div className="space-y-2 mb-4">
-                          <div className="flex items-center text-sm text-gray-600">
-                            <Check className="w-4 h-4 text-green-500 mr-2" />
-                            {plan.duration} months access
-                          </div>
-                          {(plan.duration === 9 || plan.duration === 12) && (
-                            <div className="flex items-center text-sm text-gray-600">
-                              <Check className="w-4 h-4 text-green-500 mr-2" />
-                              Unlimited business
+                      <CardContent className="pt-0 space-y-6">
+                        <div className="space-y-3 min-h-[350px]">
+                          {[
+                            { name: "Business Overview", included: true },
+                            { name: "Multiple Businesses", included: true },
+                            { name: "Booking Management", included: true },
+                            { name: "Price List & QR Uploads", included: true },
+                            { name: "Customer Ratings", included: true },
+                            { name: "Feedback & Complaints", included: true },
+                            { name: "Service Management", included: true },
+                            { name: "Check In System", included: true },
+                            { name: "Wallet & Payouts", included: true },
+                            { name: "Staff Settlement", included: isPremium },
+                          ].map((feature, fIndex) => (
+                            <div key={fIndex} className={cn(
+                              "flex items-start text-sm shrink-0",
+                              feature.included ? "text-gray-600" : "text-gray-400"
+                            )}>
+                              {feature.included ? (
+                                <Check className="w-4 h-4 text-green-500 mr-3 shrink-0 mt-0.5" />
+                              ) : (
+                                <X className="w-4 h-4 text-gray-300 mr-3 shrink-0 mt-0.5" />
+                              )}
+                              <span className={cn(feature.included && isPremium && feature.name === "Staff Settlement" ? "font-bold text-blue-600" : "")}>
+                                {feature.name}
+                              </span>
                             </div>
-                          )}
-                          <div className="flex items-center text-sm text-gray-600">
-                            <Check className="w-4 h-4 text-green-500 mr-2" />
-                            Premium features
-                          </div>
-                          <div className="flex items-center text-sm text-gray-600">
-                            <Check className="w-4 h-4 text-green-500 mr-2" />
-                            Priority support
-                          </div>
+                          ))}
                         </div>
+
                         <Button
                           className={cn(
-                            "w-full",
-                            isSelected ? "bg-blue-600 hover:bg-blue-700" : ""
+                            "w-full h-12 text-base font-semibold transition-all",
+                            isSelected 
+                              ? "bg-blue-600 hover:bg-blue-700 shadow-md" 
+                              : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
                           )}
                           variant={isSelected ? "default" : "outline"}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedPlan(plan.type);
+                            setIsDurationModalOpen(true);
+                          }}
                         >
                           {isSelected ? "Selected" : "Select Plan"}
                         </Button>
@@ -339,39 +326,86 @@ const Subscriptions = () => {
                   );
                 })}
               </div>
-              
-              {/* Selected Plan Summary */}
-              {selectedPlan && (
-                <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 animate-in slide-in-from-bottom-2 duration-300">
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="font-semibold text-lg text-gray-900 mb-1">
-                          Selected: {formatPlanName(selectedPlan)}
-                        </h3>
-                        <p className="text-gray-600">
-                          {plans.find(p => p.type === selectedPlan)?.duration} months • 
-                          ₦{Math.round((plans.find(p => p.type === selectedPlan)?.priceNGN || 0) / (plans.find(p => p.type === selectedPlan)?.duration || 1))}/month
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-2xl font-bold text-gray-900">
-                          ₦{plans.find(p => p.type === selectedPlan)?.priceNGN.toLocaleString()}
-                        </div>
-                        <p className="text-sm text-gray-500">Total price</p>
-                      </div>
+
+              {/* Duration Selection Modal */}
+              <Dialog open={isDurationModalOpen} onOpenChange={setIsDurationModalOpen}>
+                <DialogContent className="h-auto max-h-[95vh] w-[95vw] sm:max-w-xl p-0 overflow-hidden border-none shadow-2xl">
+                  <div className="p-4 sm:p-8 bg-white">
+                    <DialogHeader className="mb-6 flex flex-col items-center justify-center text-center">
+                      <DialogTitle className="text-xl sm:text-2xl font-bold text-center">Choose Duration</DialogTitle>
+                      <DialogDescription className="text-center text-gray-500">
+                        How many months would you like to subscribe to the {selectedPlan && formatPlanName(selectedPlan)}?
+                      </DialogDescription>
+                    </DialogHeader>
+                    
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                      {[3, 6, 9, 12].map((m) => (
+                        <Button
+                          key={m}
+                          variant={selectedDuration === m ? "default" : "outline"}
+                          className={cn(
+                            "h-16 text-lg font-bold transition-all flex flex-col items-center justify-center gap-0.5",
+                            selectedDuration === m 
+                              ? "bg-blue-600 hover:bg-blue-700 ring-4 ring-blue-100" 
+                              : "hover:border-blue-200 h-16"
+                          )}
+                          onClick={() => setSelectedDuration(m)}
+                        >
+                          <span className="text-xl">{m}</span>
+                          <span className="text-[10px] uppercase tracking-wider opacity-80">Months</span>
+                        </Button>
+                      ))}
                     </div>
-                    <Button 
-                      className="w-full mt-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
-                      size="lg"
-                      onClick={() => handleSubscribe(selectedPlan)}
-                    >
-                      <CreditCard className="w-4 h-4 mr-2" />
-                      Continue to Payment
-                    </Button>
-                  </CardContent>
-                </Card>
-              )}
+
+                    {/* Selected Plan Summary */}
+                    {selectedPlan && (
+                      <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <Card className="bg-gradient-to-br from-blue-600 to-indigo-700 border-none shadow-xl text-white overflow-hidden">
+                          <CardContent className="p-4 sm:p-8 relative">
+                            <div className="absolute top-0 right-0 p-4 opacity-10">
+                              <Sparkles className="w-24 h-24" />
+                            </div>
+                            
+                            <div className="flex flex-col md:flex-row items-center justify-between gap-6 relative z-10">
+                              <div className="text-center md:text-left">
+                                <p className="text-blue-100 text-sm font-medium uppercase tracking-wider mb-1">Plan Summary</p>
+                                <h3 className="text-2xl font-bold mb-1">
+                                  {formatPlanName(selectedPlan)} • {selectedDuration} Months
+                                </h3>
+                                <p className="text-blue-200 text-sm">
+                                  Access until {format(addMonths(new Date(), selectedDuration), 'MMMM d, yyyy')}
+                                </p>
+                              </div>
+                              
+                              <div className="flex flex-col items-center md:items-end">
+                                <div className="text-4xl font-black mb-1">
+                                  ₦{(plans.find(p => p.type === selectedPlan)!.pricePerMonthNGN * selectedDuration).toLocaleString()}
+                                </div>
+                                <p className="text-blue-100 text-xs font-medium bg-white/10 px-3 py-1 rounded-full">
+                                  ONE-TIME PAYMENT
+                                </p>
+                              </div>
+                            </div>
+
+                            <Button 
+                              className="w-full mt-8 bg-white text-blue-600 hover:bg-blue-50 h-14 text-lg font-black shadow-lg"
+                              size="lg"
+                              onClick={() => handleSubscribe(selectedPlan)}
+                            >
+                              <CreditCard className="w-5 h-5 mr-3" />
+                              PROCEED TO PAYMENT
+                            </Button>
+                            
+                            <p className="text-center mt-4 text-xs text-blue-200 font-medium">
+                              Secure payment powered by Paystack
+                            </p>
+                          </CardContent>
+                        </Card>
+                      </div>
+                    )}
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
           ) : (
             <Card className="border-green-200 bg-gradient-to-r from-green-50/50 to-emerald-50/50">
@@ -426,7 +460,7 @@ const Subscriptions = () => {
               </div>
               
               <div className="space-y-4">
-                {subscriptions.map((subscription, index) => (
+                {subscriptions.map((subscription) => (
                   <Card 
                     key={subscription.id} 
                     className={cn(

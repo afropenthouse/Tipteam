@@ -21,7 +21,12 @@ import Feedback from "./pages/dashboard/Feedback.tsx";
 import WalletPage from "./pages/dashboard/WalletPage.tsx";
 import Subscriptions from "./pages/dashboard/Subscriptions.tsx";
 import BookingPage from "./pages/dashboard/BookingPage.tsx";
+import CheckIn from "./pages/dashboard/CheckIn.tsx";
+import StaffSettlement from "./pages/dashboard/StaffSettlement.tsx";
+import ServicesPage from "./pages/dashboard/ServicesPage.tsx";
+import ServiceSettlement from "./pages/dashboard/ServiceSettlement.tsx";
 import Rate from "./pages/customer/Rate.tsx";
+import PublicSettlementForm from "./pages/customer/PublicSettlementForm.tsx";
 import Menu from "./pages/Menu.tsx";
 import MenuQRCode from "./pages/dashboard/MenuQRCode.tsx";
 import MenuQRGenerator from "./pages/MenuQRGenerator.tsx";
@@ -54,6 +59,7 @@ const App = () => (
           <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/onboarding" element={<Onboarding />} />
           <Route path="/rate/:businessId" element={<Rate />} />
+          <Route path="/settle/:businessId" element={<PublicSettlementForm />} />
           <Route path="/menu/:publicId" element={<Menu />} />
           <Route path="/menu-qr-generator" element={<MenuQRGenerator />} />
           <Route path="/menu-qr-view/:publicId" element={<MenuQRViewer />} />
@@ -66,12 +72,16 @@ const App = () => (
             <Route path="businesses/:id" element={<BusinessDetail />} />
             <Route path="businesses/:id/menu-qr" element={<MenuQRCode />} />
             <Route path="bookings" element={<BookingPage />} />
+            <Route path="check-in" element={<CheckIn />} />
             <Route path="bookings/:id" element={<BookingPage />} />
             <Route path="menu-qr-generator" element={<MenuManager />} />
             <Route path="ratings" element={<Ratings />} />
             <Route path="complaints" element={<Feedback />} />
+            <Route path="staff-settlement" element={<StaffSettlement />} />
+            <Route path="services" element={<ServicesPage />} />
+            <Route path="service-settlement" element={<ServiceSettlement />} />
             <Route path="wallet" element={<WalletPage />} />
-            <Route path="subscriptions" element={<Subscriptions />} />
+             <Route path="subscriptions" element={<Subscriptions />} />
           </Route>
 
           {/* Public Booking Page */}

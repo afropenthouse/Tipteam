@@ -3,6 +3,7 @@ import { body, validationResult } from "express-validator";
 import prisma from "../lib/prisma.js";
 import { authenticate, AuthRequest } from "../middleware/auth.js";
 import { sendVerificationEmail, sendPasswordResetEmail, sendPaymentReceivedEmail } from "../lib/email.js";
+import { PRICING } from "./subscriptions.js";
 
 const router = Router();
 
@@ -215,8 +216,8 @@ router.post(
   authenticate,
   [
     body("email").isEmail().withMessage("A valid email is required"),
-    body("amount").isInt({ min: 1 }).withMessage("Amount must be at least 1"),
-    body("planType").isIn(["THREE_MONTHS", "SIX_MONTHS", "NINE_MONTHS", "TWELVE_MONTHS"]).withMessage("Invalid plan type"),
+    body("planType").isIn(["BASIC", "PREMIUM", "THREE_MONTHS", "SIX_MONTHS", "NINE_MONTHS", "TWELVE_MONTHS"]).withMessage("Invalid plan type"),
+    body("duration").optional().isInt({ min: 1, max: 12 }).withMessage("Duration must be between 1 and 12 months"),
   ],
   async (req: AuthRequest, res: Response) => {
     try {
@@ -225,18 +226,41 @@ router.post(
         return res.status(400).json({ error: errors.array()[0]?.msg || "Invalid payment details" });
       }
 
-      const { email, amount, planType } = req.body;
+      const { email, planType } = req.body;
+      let { duration } = req.body;
+      duration = Number(duration || 3);
+
+      let amountInKobo = 0;
+      
+      if (planType === "BASIC" || planType === "PREMIUM") {
+        const pricing = PRICING[planType as keyof typeof PRICING];
+        amountInKobo = pricing.pricePerMonth * duration;
+      } else {
+        // Legacy plans
+        const legacyPricing: any = {
+          THREE_MONTHS: 3000000,
+          SIX_MONTHS: 6000000,
+          NINE_MONTHS: 9000000,
+          TWELVE_MONTHS: 12000000
+        };
+        amountInKobo = legacyPricing[planType];
+      }
+
+      if (!amountInKobo) {
+        return res.status(400).json({ error: "Invalid plan type or amount" });
+      }
 
       const transaction = await psRequest(
         "POST",
         "/transaction/initialize",
         {
           email,
-          amount,
+          amount: amountInKobo,
           currency: "NGN",
           callback_url: `${process.env.FRONTEND_URL || "http://localhost:5173"}/dashboard/subscriptions`,
           metadata: {
             planType,
+            duration,
             payerEmail: email,
             type: "subscription",
           },
@@ -287,19 +311,37 @@ router.post(
         return res.status(400).json({ success: false, error: "Payment not successful" });
       }
 
-      const metadata = (transactionData.metadata || {}) as { planType?: string };
+      const metadata = (transactionData.metadata || {}) as { planType?: string; duration?: number };
       const planType = requestPlanType || metadata.planType;
+      const duration = Number(req.body.duration || metadata.duration);
 
-      const pricing = {
-        THREE_MONTHS: { duration: 3, price: 3000000 },
-        SIX_MONTHS: { duration: 6, price: 6000000 },
-        NINE_MONTHS: { duration: 9, price: 9000000 },
-        TWELVE_MONTHS: { duration: 12, price: 12000000 },
-      };
+      let planDuration = 0;
+      let planPrice = 0;
 
-      const plan = pricing[planType as keyof typeof pricing];
-      if (!plan) {
-        return res.status(400).json({ error: "Invalid plan type" });
+      if (planType === "BASIC" || planType === "PREMIUM") {
+        if (!duration || duration > 3) {
+          return res.status(400).json({ error: "Invalid duration for Basic/Premium plans" });
+        }
+        const pricing: any = {
+          BASIC: 1000000,
+          PREMIUM: 2000000
+        };
+        planDuration = duration;
+        planPrice = pricing[planType] * duration;
+      } else {
+        // Handle legacy plans
+        const pricing = {
+          THREE_MONTHS: { duration: 3, price: 3000000 },
+          SIX_MONTHS: { duration: 6, price: 6000000 },
+          NINE_MONTHS: { duration: 9, price: 9000000 },
+          TWELVE_MONTHS: { duration: 12, price: 12000000 },
+        };
+        const plan = pricing[planType as keyof typeof pricing];
+        if (!plan) {
+          return res.status(400).json({ error: "Invalid plan type" });
+        }
+        planDuration = plan.duration;
+        planPrice = plan.price;
       }
 
       const userId = req.userId;
@@ -310,14 +352,14 @@ router.post(
 
       const startDate = new Date();
       const endDate = new Date(startDate);
-      endDate.setMonth(endDate.getMonth() + plan.duration);
+      endDate.setMonth(endDate.getMonth() + planDuration);
 
       const subscription = await prisma.subscription.create({
         data: {
           userId,
-          planType: planType as "THREE_MONTHS" | "SIX_MONTHS" | "NINE_MONTHS" | "TWELVE_MONTHS",
-          duration: plan.duration,
-          price: plan.price,
+          planType: planType as any,
+          duration: planDuration,
+          price: planPrice,
           status: "ACTIVE",
           startDate,
           endDate,

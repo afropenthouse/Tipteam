@@ -11,7 +11,7 @@ export default function Onboarding() {
   const user = useCurrentUser();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({ name: "", email: "", phone: "", address: "" });
+  const [form, setForm] = useState({ name: "", email: "", phone: "", address: "", website: "" });
 
   if (!user) return <Navigate to="/login" replace />;
 
@@ -58,6 +58,10 @@ export default function Onboarding() {
           <div className="space-y-2">
             <Label htmlFor="address">Business address</Label>
             <Textarea id="address" required value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} placeholder="123 Marina Road, Lagos" />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="website">Business website (optional)</Label>
+            <Input id="website" type="url" value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} placeholder="https://www.dailybrew.com" />
           </div>
           <div className="flex items-center justify-between gap-3 pt-2">
             <Button type="button" variant="ghost" onClick={() => navigate("/dashboard")}>

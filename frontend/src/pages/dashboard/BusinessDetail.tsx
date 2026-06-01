@@ -30,6 +30,7 @@ export default function BusinessDetail() {
     email: "",
     phone: "",
     address: "",
+    website: "",
     googleBusinessUrl: "",
     allowTipping: false
   });
@@ -55,6 +56,7 @@ export default function BusinessDetail() {
         email: business.email,
         phone: business.phone,
         address: business.address,
+        website: business.website || "",
         googleBusinessUrl: business.googleBusinessUrl || "",
         allowTipping: business.allowTipping ?? false
       });
@@ -339,12 +341,23 @@ export default function BusinessDetail() {
               />
             </div>
             <div className="grid gap-2">
+              <Label htmlFor="website">Website (Optional)</Label>
+              <Input
+                id="website"
+                type="url"
+                value={editForm.website}
+                onChange={(e) => handleFormChange("website", e.target.value)}
+                placeholder="https://example.com"
+              />
+            </div>
+            <div className="grid gap-2">
               <Label htmlFor="googleBusinessUrl">Google Business URL (Optional)</Label>
               <Input
                 id="googleBusinessUrl"
+                type="url"
                 value={editForm.googleBusinessUrl}
                 onChange={(e) => handleFormChange("googleBusinessUrl", e.target.value)}
-                placeholder="Enter Google Business profile URL"
+                placeholder="https://g.page/..."
               />
             </div>
             <div className="flex items-center space-x-3 p-4 border rounded-lg bg-muted/30">
