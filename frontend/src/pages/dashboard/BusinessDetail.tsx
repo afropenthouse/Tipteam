@@ -407,7 +407,7 @@ export default function BusinessDetail() {
               />
               <div className="space-y-1">
                 <Label htmlFor="allow-checkin-edit" className="text-sm font-medium cursor-pointer">
-                  Allow checkin
+                  Allow check-in
                 </Label>
                 <p className="text-xs text-muted-foreground">
                   When enabled, customers can check in to your business

@@ -16,7 +16,7 @@ export default function PublicCheckIn() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [result, setResult] = useState<{ success: boolean; message: string; customerName?: string } | null>(null);
 
   useEffect(() => {
     if (!businessId) return;
@@ -34,7 +34,7 @@ export default function PublicCheckIn() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!businessId || !name.trim() || !phone.trim()) return;
+    if (!businessId || (!name.trim() && !phone.trim())) return;
 
     setIsSubmitting(true);
     try {
@@ -112,7 +112,6 @@ export default function PublicCheckIn() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="h-11 text-base border-primary/15 focus-visible:ring-primary/30"
-                  required
                   autoFocus
                 />
               </div>
@@ -126,14 +125,13 @@ export default function PublicCheckIn() {
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   className="h-11 text-base border-primary/15 focus-visible:ring-primary/30"
-                  required
                 />
               </div>
 
               <Button 
                 type="submit" 
                 className="w-full h-11 text-base bg-gradient-primary shadow-elegant font-bold"
-                disabled={isSubmitting || !name.trim() || !phone.trim()}
+                disabled={isSubmitting || (!name.trim() && !phone.trim())}
               >
                 {isSubmitting ? (
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
@@ -146,30 +144,34 @@ export default function PublicCheckIn() {
           ) : (
             <div className="text-center py-4 animate-in zoom-in-95 duration-300">
               <div className={cn(
-                "mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4",
-                result.success ? "bg-green-100" : "bg-red-100"
+                "mx-auto w-24 h-24 rounded-full flex items-center justify-center mb-6 shadow-lg",
+                result.success ? "bg-green-100 border-2 border-green-200" : "bg-red-100 border-2 border-red-200"
               )}>
                 {result.success ? (
-                  <CheckCircle2 className="h-10 w-10 text-green-600" />
+                  <CheckCircle2 className="h-16 w-16 text-green-600" />
                 ) : (
-                  <XCircle className="h-10 w-10 text-red-600" />
+                  <XCircle className="h-16 w-16 text-red-600" />
                 )}
               </div>
               
               <h3 className={cn(
-                "text-xl font-bold mb-2",
+                "text-2xl font-black mb-1",
                 result.success ? "text-green-700" : "text-red-700"
               )}>
-                {result.success ? "Success!" : "Denied"}
+                {result.success ? "Checked In" : "Denied"}
               </h3>
               
-              <p className="text-sm text-muted-foreground mb-6">
-                {result.message}
-              </p>
+              <div className="text-xl font-black text-gray-900 mb-8">
+                {result.success ? (
+                  result.customerName || "Member"
+                ) : (
+                  <p className="text-sm font-normal text-muted-foreground">{result.message}</p>
+                )}
+              </div>
 
               <Button 
                 variant="outline" 
-                className="w-full h-11 text-base"
+                className="w-full h-12 text-lg font-bold shadow-sm"
                 onClick={() => {
                   setResult(null);
                   setName("");

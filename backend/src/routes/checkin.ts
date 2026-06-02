@@ -215,8 +215,8 @@ router.post("/public/:businessId", async (req, res) => {
     const { businessId } = req.params;
     const { name, phone } = req.body;
 
-    if (!name || !phone) {
-      return res.status(400).json({ error: "Name and phone number are required for check-in" });
+    if (!name && !phone) {
+      return res.status(400).json({ error: "Name or phone number is required for check-in" });
     }
 
     // Check if business allows check-in
@@ -234,18 +234,15 @@ router.post("/public/:businessId", async (req, res) => {
       return res.status(403).json({ error: "Check-in is not enabled for this business" });
     }
 
-    // Find active customer by name and phone
+    // Find active customer by name OR phone
     const customer = await prisma.customer.findFirst({
       where: {
         businessId,
-        name: {
-          equals: name,
-          mode: 'insensitive'
-        },
-        phone: {
-          contains: phone // Use contains to handle different formats if necessary, or equals for exact match
-        },
-        subscriptionStatus: "ACTIVE"
+        subscriptionStatus: "ACTIVE",
+        OR: [
+          name ? { name: { equals: name, mode: 'insensitive' } } : undefined,
+          phone ? { phone: { contains: phone } } : undefined
+        ].filter(Boolean) as any
       }
     });
 
@@ -279,7 +276,8 @@ router.post("/public/:businessId", async (req, res) => {
 
     res.json({ 
       success: true, 
-      message: `Welcome, ${customer.name}! Check-in successful.` 
+      message: `Welcome, ${customer.name}! Check-in successful.`,
+      customerName: customer.name
     });
   } catch (error) {
     console.error("Public check-in error:", error);

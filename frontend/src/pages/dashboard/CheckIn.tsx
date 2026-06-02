@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { 
   Table, 
@@ -86,7 +86,7 @@ export default function CheckIn() {
 
   // Filters
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [businessFilter, setBusinessFilter] = useState<string>("all");
+  const [businessFilter, setBusinessFilter] = useState<string>("");
 
   const queryClient = useQueryClient();
 
@@ -99,6 +99,13 @@ export default function CheckIn() {
     queryKey: ["businesses"],
     queryFn: listBusinesses,
   });
+
+  // Set default business filter when businesses are loaded
+  useEffect(() => {
+    if (businessFilter === "" && businesses.length > 0) {
+      setBusinessFilter(businesses[0].id);
+    }
+  }, [businesses, businessFilter]);
 
   const activateMutation = useMutation({
     mutationFn: ({ id, expiry }: { id: string; expiry?: string }) => {
@@ -556,9 +563,9 @@ export default function CheckIn() {
       </div>
 
       {/* Check-in Links for Businesses */}
-      {businesses.filter(b => b.allowCheckin).length > 0 && (
+      {businesses.filter(b => b.allowCheckin && (businessFilter === "" || b.id === businessFilter)).length > 0 && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {businesses.filter(b => b.allowCheckin).map(b => (
+          {businesses.filter(b => b.allowCheckin && (businessFilter === "" || b.id === businessFilter)).map(b => (
             <div key={b.id} className="p-4 border rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50 shadow-sm border-blue-100">
               <div className="flex items-center justify-between mb-3">
                 <span className="font-bold text-blue-900">{b.name}</span>
@@ -619,10 +626,9 @@ export default function CheckIn() {
 
           <Select value={businessFilter} onValueChange={setBusinessFilter}>
             <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="All Businesses" />
+              <SelectValue placeholder="Select Business" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Businesses</SelectItem>
               {businesses.map(b => (
                 <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
               ))}
