@@ -1,4 +1,4 @@
-import { LayoutDashboard, Store, Star, MessageSquareWarning, Wallet, Crown, LogOut, QrCode, Upload, Calendar, Users, Briefcase, UserCheck } from "lucide-react";
+import { LayoutDashboard, Store, Star, MessageSquareWarning, Wallet, Crown, LogOut, QrCode, Upload, Calendar, Users, Briefcase, UserCheck, MessageSquare } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   Sidebar,
@@ -28,6 +28,7 @@ const mainItems = [
   { title: "Staff Settlement", url: "/dashboard/staff-settlement", icon: Users },
   { title: "Services", url: "/dashboard/services", icon: Briefcase },
   { title: "Check In", url: "/dashboard/check-in", icon: UserCheck },
+  { title: "Message", url: "/dashboard/message", icon: MessageSquare },
   { title: "Wallet", url: "/dashboard/wallet", icon: Wallet },
   { title: "Subscriptions", url: "/dashboard/subscriptions", icon: Crown },
 ];

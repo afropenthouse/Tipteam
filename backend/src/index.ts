@@ -11,6 +11,7 @@ import paystackRoutes from "./routes/paystack.js";
 import subscriptionRoutes from "./routes/subscriptions.js";
 import settlementRoutes from "./routes/settlement.js";
 import checkinRoutes from "./routes/checkin.js";
+import messageRoutes from "./routes/messages.js";
 import adminRoutes from "./routes/admin/index.js";
 
 const app = express();
@@ -48,6 +49,7 @@ app.use("/api/paystack", paystackRoutes);
 app.use("/api/subscriptions", subscriptionRoutes);
 app.use("/api/settlement", settlementRoutes);
 app.use("/api/checkin", checkinRoutes);
+app.use("/api/messages", messageRoutes);
 app.use("/api/admin", adminRoutes);
 
 console.log("Final Cloudinary Config Check:", {

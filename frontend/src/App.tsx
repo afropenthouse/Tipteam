@@ -19,6 +19,7 @@ import BusinessDetail from "./pages/dashboard/BusinessDetail.tsx";
 import Ratings from "./pages/dashboard/Ratings.tsx";
 import Feedback from "./pages/dashboard/Feedback.tsx";
 import WalletPage from "./pages/dashboard/WalletPage.tsx";
+import MessagePage from "./pages/dashboard/Message.tsx";
 import Subscriptions from "./pages/dashboard/Subscriptions.tsx";
 import BookingPage from "./pages/dashboard/BookingPage.tsx";
 import CheckIn from "./pages/dashboard/CheckIn.tsx";
@@ -82,6 +83,7 @@ const App = () => (
             <Route path="staff-settlement" element={<StaffSettlement />} />
             <Route path="services" element={<ServicesPage />} />
             <Route path="service-settlement" element={<ServiceSettlement />} />
+            <Route path="message" element={<MessagePage />} />
             <Route path="wallet" element={<WalletPage />} />
              <Route path="subscriptions" element={<Subscriptions />} />
           </Route>

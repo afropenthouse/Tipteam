@@ -16,6 +16,7 @@ model User {
   isVerified      Boolean          @default(false)
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
+  messageBalance  Float            @default(0)
   bookingProfiles BookingProfile[]
   businesses      Business[]
   subscriptions   Subscription[]
