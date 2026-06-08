@@ -8,10 +8,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, MapPin, Calendar as CalendarIcon, ChevronLeft, ChevronRight, CheckCircle2, User, Phone, X, Briefcase } from "lucide-react";
+import { Loader2, MapPin, Calendar as CalendarIcon, ChevronLeft, ChevronRight, CheckCircle2, User, Phone, X, Briefcase, Maximize2 } from "lucide-react";
 import { format, startOfDay } from "date-fns";
 import { getPublicBookingProfile, getUnavailableDates, createBooking } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 
 export default function PublicBookingPage() {
   const { publicId } = useParams<{ publicId: string }>();
@@ -27,13 +29,14 @@ export default function PublicBookingPage() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [showBookingDialog, setShowBookingDialog] = useState(false);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const [showImageModal, setShowImageModal] = useState(false);
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [notes, setNotes] = useState("");
   const [bookingLoading, setBookingLoading] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
-  const [selectedService, setSelectedService] = useState<string>("");
+  const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [customService, setCustomService] = useState("");
 
   const availableServices = [
@@ -71,43 +74,53 @@ export default function PublicBookingPage() {
     fetchData();
   }, [publicId]);
 
-  const isDateUnavailable = (date: Date) => {
-    const dateStr = format(date, "yyyy-MM-dd");
-    return unavailabilityData.unavailableDates.some(u => u.date === dateStr && !u.startTime && !u.endTime);
+  const timeToMinutes = (t: string) => {
+    if (!t) return 0;
+    const [timePart, meridiem] = t.split(" ");
+    let [hours, minutes] = timePart.split(":").map(Number);
+    if (meridiem === "PM" && hours !== 12) hours += 12;
+    if (meridiem === "AM" && hours === 12) hours = 0;
+    return hours * 60 + minutes;
   };
 
   const isTimeSlotUnavailable = (date: Date, time: string) => {
-     const dateStr = format(date, "yyyy-MM-dd");
-     
-     // Check if it's already booked
-     if (unavailabilityData.bookings.some(b => b.date === dateStr && b.time === time)) {
-       return true;
-     }
-     
-     // Check if it falls within an unavailable time range
-     const timeRanges = unavailabilityData.unavailableDates.filter(u => u.date === dateStr && u.startTime && u.endTime);
-     
-     if (timeRanges.length > 0) {
-       const timeToMinutes = (t: string) => {
-         const [timePart, meridiem] = t.split(" ");
-         let [hours, minutes] = timePart.split(":").map(Number);
-         if (meridiem === "PM" && hours !== 12) hours += 12;
-         if (meridiem === "AM" && hours === 12) hours = 0;
-         return hours * 60 + minutes;
-       };
-       
-       const slotMinutes = timeToMinutes(time);
-       
-       return timeRanges.some(range => {
-         const start = timeToMinutes(range.startTime!);
-         const end = timeToMinutes(range.endTime!);
-         // If a slot is exactly at the start or end, it's considered unavailable
-         return slotMinutes >= start && slotMinutes <= end;
-       });
-     }
-     
-     return false;
-   };
+    const dateStr = format(date, "yyyy-MM-dd");
+    
+    // Check if it's already booked
+    if (unavailabilityData.bookings.some(b => b.date === dateStr && b.time === time)) {
+      return true;
+    }
+    
+    // Check if it falls within an unavailable time range
+    const timeRanges = unavailabilityData.unavailableDates.filter(u => u.date === dateStr && u.startTime && u.endTime);
+    
+    if (timeRanges.length > 0) {
+      const slotMinutes = timeToMinutes(time);
+      
+      return timeRanges.some(range => {
+        const start = timeToMinutes(range.startTime!);
+        const end = timeToMinutes(range.endTime!);
+        // If a slot is exactly at the start or end, it's considered unavailable
+        return slotMinutes >= start && slotMinutes <= end;
+      });
+    }
+    
+    return false;
+  };
+
+  const isDateUnavailable = (date: Date) => {
+    const dateStr = format(date, "yyyy-MM-dd");
+    
+    // Check if the whole day is manually blocked
+    const isFullDayBlocked = unavailabilityData.unavailableDates.some(u => u.date === dateStr && !u.startTime && !u.endTime);
+    if (isFullDayBlocked) return true;
+
+    // Check if every single defined time slot is either booked or blocked
+    // If all slots are taken, the date should be disabled in the calendar
+    const allSlotsUnavailable = timeSlots.every(slot => isTimeSlotUnavailable(date, slot));
+    
+    return allSlotsUnavailable;
+  };
 
   const handleBookNow = () => {
     if (!selectedDate) return;
@@ -115,12 +128,13 @@ export default function PublicBookingPage() {
   };
 
    const handleConfirmBooking = async () => {
-     if (!selectedDate || !customerName || !customerPhone || !publicId) return;
+     if (!selectedDate || !customerName || !customerPhone || !publicId || selectedServices.length === 0) return;
 
      setBookingLoading(true);
-     const serviceText = selectedService === "Other (Custom)" ? customService : selectedService;
+     const services = selectedServices.map(s => s === "Other (Custom)" ? customService : s).filter(Boolean);
+     const serviceText = services.join(", ");
      const bookingNotes = [
-       serviceText ? `Service: ${serviceText}` : null,
+       serviceText ? `Services: ${serviceText}` : null,
        notes ? `Notes: ${notes}` : null
      ].filter(Boolean).join(" | ");
 
@@ -139,7 +153,7 @@ export default function PublicBookingPage() {
        setNotes("");
        setSelectedDate(undefined);
        setSelectedTime(null);
-       setSelectedService("");
+       setSelectedServices([]);
        setCustomService("");
        
        const data = await getUnavailableDates(publicId);
@@ -166,10 +180,18 @@ export default function PublicBookingPage() {
       setShowSuccessDialog(false);
       setCustomerName("");
       setCustomerPhone("");
-      setSelectedService("");
+      setSelectedServices([]);
       setCustomService("");
       setSelectedTime(null);
     }
+  };
+
+  const toggleService = (service: string) => {
+    setSelectedServices(prev => 
+      prev.includes(service) 
+        ? prev.filter(s => s !== service) 
+        : [...prev, service]
+    );
   };
 
   if (loading) {
@@ -238,27 +260,48 @@ export default function PublicBookingPage() {
 
                 {profile.pictures?.length > 0 && (
                   <div className="space-y-4">
-                    <div className="relative rounded-lg overflow-hidden aspect-video bg-muted border">
+                    <div 
+                      className="relative rounded-lg overflow-hidden aspect-video bg-muted border cursor-pointer group"
+                      onClick={() => setShowImageModal(true)}
+                    >
                       <img 
                         src={profile.pictures[currentImageIndex].imageUrl} 
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                         alt="Gallery"
                       />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                        <Maximize2 className="text-white opacity-0 group-hover:opacity-100 transition-opacity h-10 w-10" />
+                      </div>
+                      
+                      {profile.pictures.length > 1 && (
+                        <div className="absolute bottom-4 right-4">
+                          <Badge variant="secondary" className="bg-black/50 text-white border-none backdrop-blur-md px-3 py-1 text-sm font-medium">
+                            +{profile.pictures.length - 1} more photos
+                          </Badge>
+                        </div>
+                      )}
+
                       {profile.pictures.length > 1 && (
                         <>
                           <Button
                             variant="secondary"
                             size="icon"
-                            className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full opacity-80 hover:opacity-100"
-                            onClick={() => setCurrentImageIndex((prev) => (prev === 0 ? profile.pictures.length - 1 : prev - 1))}
+                            className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full opacity-0 group-hover:opacity-80 hover:!opacity-100 transition-opacity"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCurrentImageIndex((prev) => (prev === 0 ? profile.pictures.length - 1 : prev - 1));
+                            }}
                           >
                             <ChevronLeft className="h-5 w-5" />
                           </Button>
                           <Button
                             variant="secondary"
                             size="icon"
-                            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full opacity-80 hover:opacity-100"
-                            onClick={() => setCurrentImageIndex((prev) => (prev === profile.pictures.length - 1 ? 0 : prev + 1))}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full opacity-0 group-hover:opacity-80 hover:!opacity-100 transition-opacity"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCurrentImageIndex((prev) => (prev === profile.pictures.length - 1 ? 0 : prev + 1));
+                            }}
                           >
                             <ChevronRight className="h-5 w-5" />
                           </Button>
@@ -334,20 +377,18 @@ export default function PublicBookingPage() {
                   </CardHeader>
                   <CardContent>
                     <div className="grid grid-cols-3 gap-2 max-h-[400px] overflow-y-auto pr-2 scrollbar-hide">
-                      {timeSlots.map((time) => {
-                        const unavailable = isTimeSlotUnavailable(selectedDate, time);
-                        return (
+                      {timeSlots
+                        .filter(time => !isTimeSlotUnavailable(selectedDate, time))
+                        .map((time) => (
                           <Button
                             key={time}
                             variant={selectedTime === time ? "default" : "outline"}
                             className={`h-11 font-medium ${selectedTime === time ? "shadow-md" : ""}`}
                             onClick={() => setSelectedTime(time)}
-                            disabled={unavailable}
                           >
                             {time}
                           </Button>
-                        );
-                      })}
+                        ))}
                     </div>
                   </CardContent>
                   <CardFooter>
@@ -375,38 +416,7 @@ export default function PublicBookingPage() {
               {selectedDate && format(selectedDate, "EEEE, MMMM dd, yyyy")} at {selectedTime}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Select Service *</Label>
-              <Select value={selectedService} onValueChange={setSelectedService}>
-                <SelectTrigger className="w-full">
-                  <div className="flex items-center gap-2">
-                    <Briefcase className="h-4 w-4 text-muted-foreground" />
-                    <SelectValue placeholder="What service do you need?" />
-                  </div>
-                </SelectTrigger>
-                <SelectContent>
-                  {availableServices.map((service) => (
-                    <SelectItem key={service} value={service}>
-                      {service}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {selectedService === "Other (Custom)" && (
-              <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
-                <Label htmlFor="custom-service">Specify Service *</Label>
-                <Input
-                  id="custom-service"
-                  placeholder="Enter the service you need"
-                  value={customService}
-                  onChange={(e) => setCustomService(e.target.value)}
-                />
-              </div>
-            )}
-
+          <div className="space-y-6 py-4">
             <div className="space-y-2">
               <Label htmlFor="name">Your Full Name *</Label>
               <div className="relative">
@@ -435,6 +445,42 @@ export default function PublicBookingPage() {
               </div>
             </div>
 
+            <div className="space-y-3">
+              <Label className="text-base font-semibold flex items-center gap-2">
+                <Briefcase className="h-4 w-4" />
+                Select Services *
+              </Label>
+              <div className="grid grid-cols-1 gap-2 border rounded-lg p-3 bg-muted/20">
+                {availableServices.map((service) => (
+                  <div key={service} className="flex items-center space-x-3 space-y-0 rounded-md p-2 hover:bg-muted/50 transition-colors">
+                    <Checkbox
+                      id={`service-${service}`}
+                      checked={selectedServices.includes(service)}
+                      onCheckedChange={() => toggleService(service)}
+                    />
+                    <Label
+                      htmlFor={`service-${service}`}
+                      className="text-sm font-medium leading-none cursor-pointer flex-1 py-1"
+                    >
+                      {service}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {selectedServices.includes("Other (Custom)") && (
+              <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
+                <Label htmlFor="custom-service">Specify Service *</Label>
+                <Input
+                  id="custom-service"
+                  placeholder="Enter the service you need"
+                  value={customService}
+                  onChange={(e) => setCustomService(e.target.value)}
+                />
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="notes">Notes (Optional)</Label>
               <Textarea
@@ -453,8 +499,8 @@ export default function PublicBookingPage() {
                 bookingLoading || 
                 !customerName || 
                 !customerPhone || 
-                !selectedService || 
-                (selectedService === "Other (Custom)" && !customService)
+                selectedServices.length === 0 || 
+                (selectedServices.includes("Other (Custom)") && !customService)
               }
             >
               {bookingLoading ? (
@@ -470,6 +516,62 @@ export default function PublicBookingPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Image Gallery Modal */}
+      <Dialog open={showImageModal} onOpenChange={setShowImageModal}>
+        <DialogContent className="max-w-4xl p-0 overflow-hidden bg-black/95 border-none">
+          <div className="relative aspect-video w-full flex items-center justify-center">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute right-4 top-4 text-white hover:bg-white/20 z-10"
+              onClick={() => setShowImageModal(false)}
+            >
+              <X className="h-6 w-6" />
+            </Button>
+            
+            <img 
+              src={profile.pictures[currentImageIndex].imageUrl} 
+              className="max-w-full max-h-full object-contain"
+              alt="Full view"
+            />
+
+            {profile.pictures.length > 1 && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-white hover:bg-white/20 h-12 w-12 rounded-full"
+                  onClick={() => setCurrentImageIndex((prev) => (prev === 0 ? profile.pictures.length - 1 : prev - 1))}
+                >
+                  <ChevronLeft className="h-8 w-8" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-white hover:bg-white/20 h-12 w-12 rounded-full"
+                  onClick={() => setCurrentImageIndex((prev) => (prev === profile.pictures.length - 1 ? 0 : prev + 1))}
+                >
+                  <ChevronRight className="h-8 w-8" />
+                </Button>
+              </>
+            )}
+          </div>
+          <div className="p-4 bg-black/50 backdrop-blur-sm flex justify-center gap-2 overflow-x-auto">
+            {profile.pictures.map((pic: any, index: number) => (
+              <button
+                key={pic.id}
+                onClick={() => setCurrentImageIndex(index)}
+                className={`flex-shrink-0 w-16 h-16 rounded overflow-hidden border-2 transition-all ${
+                  currentImageIndex === index ? "border-primary" : "border-white/20 opacity-50 hover:opacity-100"
+                }`}
+              >
+                <img src={pic.imageUrl} className="w-full h-full object-cover" alt="Thumbnail" />
+              </button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Success Dialog */}
       <Dialog open={showSuccessDialog} onOpenChange={handleCloseSuccessDialog}>
         <DialogContent className="sm:max-w-md">
@@ -479,7 +581,7 @@ export default function PublicBookingPage() {
             </div>
             <DialogTitle className="text-2xl font-bold mb-2">Booking Confirmed!</DialogTitle>
             <p className="text-muted-foreground mb-6">
-              Thank you for booking <strong>{selectedService === "Other (Custom)" ? customService : selectedService}</strong> with {profile?.name} for {selectedDate && format(selectedDate, "MMM dd")} at {selectedTime}. We have received your request and will contact you shortly at {customerPhone}.
+              Thank you for booking <strong>{selectedServices.map(s => s === "Other (Custom)" ? customService : s).filter(Boolean).join(", ")}</strong> with {profile?.name} for {selectedDate && format(selectedDate, "MMM dd")} at {selectedTime}. We have received your request and will contact you shortly at {customerPhone}.
             </p>
             <Button className="w-full h-12" onClick={() => handleCloseSuccessDialog(false)}>
               Close

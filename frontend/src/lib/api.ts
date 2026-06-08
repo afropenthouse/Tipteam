@@ -776,8 +776,8 @@ export const deleteBookingPicture = async (pictureId: string): Promise<void> => 
   }
 };
 
-export const addUnavailableDates = async (profileId: string, dates: (string | { date: string; startTime?: string; endTime?: string })[]): Promise<UnavailableDate[]> => {
-  const { dates: result } = await api.post<{ dates: UnavailableDate[] }>(`/bookings/${profileId}/unavailable-dates`, { dates });
+export const addUnavailableDates = async (profileId: string, dates: (string | { date: string; startTime?: string; endTime?: string })[], replace: boolean = false): Promise<UnavailableDate[]> => {
+  const { dates: result } = await api.post<{ dates: UnavailableDate[] }>(`/bookings/${profileId}/unavailable-dates`, { dates, replace });
   return result;
 };
 

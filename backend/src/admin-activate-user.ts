@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function activateUserAndSubscribe() {
-  const email = 'ellatrends0@gmail.com';
+  const email = 'fofoladipo@gmail.com';
   
   try {
     console.log(`Looking for user: ${email}`);

@@ -304,7 +304,7 @@ router.post("/:id/unavailable-dates", authenticate, [
 ], async (req: AuthRequest, res: Response) => {
   try {
     const id = getId(req.params.id);
-    const { dates } = req.body;
+    const { dates, replace } = req.body;
 
     const existing = await prisma.bookingProfile.findFirst({
       where: {
@@ -315,6 +315,15 @@ router.post("/:id/unavailable-dates", authenticate, [
 
     if (!existing) {
       return res.status(404).json({ error: "Booking profile not found" });
+    }
+
+    // If replace is true, delete all existing unavailable dates for this profile
+    if (replace) {
+      await prisma.unavailableDate.deleteMany({
+        where: {
+          bookingProfileId: id
+        }
+      });
     }
 
     const unavailableDates = await Promise.all(
@@ -336,6 +345,7 @@ router.post("/:id/unavailable-dates", authenticate, [
 
     res.json({ dates: unavailableDates });
   } catch (error) {
+    console.error("Add unavailable dates error:", error);
     res.status(500).json({ error: "Failed to add unavailable dates" });
   }
 });

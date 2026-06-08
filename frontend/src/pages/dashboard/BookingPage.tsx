@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectItem, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { listBookingProfiles, createBookingProfile, updateBookingProfile, deleteBookingProfile, uploadBookingPictures, addUnavailableDates, getBookingShareUrl, getBookingsForProfile, listBusinesses, getAllBookings, deleteBooking } from "@/lib/api";
+import { listBookingProfiles, createBookingProfile, updateBookingProfile, deleteBookingProfile, uploadBookingPictures, deleteBookingPicture, addUnavailableDates, getBookingShareUrl, getBookingsForProfile, listBusinesses, getAllBookings, deleteBooking } from "@/lib/api";
 import type { Booking, Business } from "@/lib/api";
 
 const timeSlots = [
@@ -55,7 +55,8 @@ export default function BookingPage() {
    const [description, setDescription] = useState("");
    const [pictures, setPictures] = useState<File[]>([]);
    const [picturePreviews, setPicturePreviews] = useState<string[]>([]);
-   const [existingPictureUrls, setExistingPictureUrls] = useState<string[]>([]);
+   const [existingPictures, setExistingPictures] = useState<{id: string, imageUrl: string}[]>([]);
+   const [deletedPictureIds, setDeletedPictureIds] = useState<string[]>([]);
    const [businesses, setBusinesses] = useState<Business[]>([]);
    const [selectedBusinessId, setSelectedBusinessId] = useState<string>("none");
    const [hostServices, setHostServices] = useState<string[]>([]);
@@ -126,7 +127,8 @@ export default function BookingPage() {
       setDescription("");
       setPictures([]);
       setPicturePreviews([]);
-      setExistingPictureUrls([]);
+      setExistingPictures([]);
+      setDeletedPictureIds([]);
       setUnavailableDates([]);
       setFocusedDate(undefined);
       setHostServices([]);
@@ -137,7 +139,7 @@ export default function BookingPage() {
 
   const handlePictureUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    if (files.length + pictures.length > 10) {
+    if (files.length + pictures.length + existingPictures.length > 10) {
       toast({ title: "Too many images", description: "Maximum 10 images allowed", variant: "destructive" });
       return;
     }
@@ -156,6 +158,11 @@ export default function BookingPage() {
   const removePicture = (index: number) => {
     setPictures(pictures.filter((_, i) => i !== index));
     setPicturePreviews(picturePreviews.filter((_, i) => i !== index));
+  };
+
+  const removeExistingPicture = (id: string) => {
+    setExistingPictures(existingPictures.filter(p => p.id !== id));
+    setDeletedPictureIds([...deletedPictureIds, id]);
   };
 
   const removeUnavailableSlot = (id: string) => {
@@ -210,6 +217,7 @@ export default function BookingPage() {
      try {
        let profile: any;
        if (editingProfile) {
+         // 1. Update basic info
          profile = await updateBookingProfile(editingProfile.id, {
            name,
            location,
@@ -217,6 +225,16 @@ export default function BookingPage() {
            services: hostServices,
            businessId: selectedBusinessId === "none" ? undefined : selectedBusinessId
          });
+
+         // 2. Handle deleted pictures
+         if (deletedPictureIds.length > 0) {
+           await Promise.all(deletedPictureIds.map(id => deleteBookingPicture(id)));
+         }
+
+         // 3. Upload new pictures if any
+         if (pictures.length > 0) {
+           await uploadBookingPictures(editingProfile.id, pictures);
+         }
        } else {
          profile = await createBookingProfile({
            name,
@@ -229,14 +247,20 @@ export default function BookingPage() {
          if (pictures.length > 0) {
            await uploadBookingPictures(profile.id, pictures);
          }
- 
-         if (unavailableDates.length > 0) {
-           const datesToSave = unavailableDates.map(d => ({
-             date: formatDateForAPI(d.date),
-             startTime: d.startTime === "all-day" ? null : d.startTime,
-             endTime: d.endTime === "all-day" ? null : d.endTime
-           }));
-           await addUnavailableDates(profile.id, datesToSave);
+       }
+
+       // Only save unavailable dates if they were changed or we're in Step 2
+       // We allow empty array to clear existing dates if editing
+       if (currentStep === 2) {
+         const datesToSave = unavailableDates.map(d => ({
+           date: formatDateForAPI(d.date),
+           startTime: d.startTime === "all-day" ? null : d.startTime,
+           endTime: d.endTime === "all-day" ? null : d.endTime
+         }));
+         
+         // Only call API if there are dates to save OR we're editing (to clear existing)
+         if (datesToSave.length > 0 || editingProfile) {
+           await addUnavailableDates(profile.id, datesToSave, !!editingProfile);
          }
        }
  
@@ -266,13 +290,29 @@ export default function BookingPage() {
      setLocation(profile.location);
      setDescription(profile.description || "");
      setHostServices(profile.services || []);
-     setExistingPictureUrls(profile.pictures?.map((p: any) => p.imageUrl) || []);
-     const dates = profile.unavailableDates?.map((d: any) => ({
-       id: d.id,
-       date: new Date(d.date),
-       startTime: d.startTime,
-       endTime: d.endTime
-     })) || [];
+     setExistingPictures(profile.pictures?.map((p: any) => ({ id: p.id, imageUrl: p.imageUrl })) || []);
+     setDeletedPictureIds([]);
+     setPictures([]);
+     setPicturePreviews([]);
+     
+     const dates = profile.unavailableDates?.map((d: any) => {
+       // Safely parse the date string to avoid timezone shifts
+       // Most API dates come as ISO strings. We want to treat the date part as local.
+       const dateObj = new Date(d.date);
+       const localDate = new Date(
+         dateObj.getUTCFullYear(),
+         dateObj.getUTCMonth(),
+         dateObj.getUTCDate()
+       );
+       
+       return {
+         id: d.id,
+         date: localDate,
+         startTime: d.startTime,
+         endTime: d.endTime
+       };
+     }) || [];
+     
      setUnavailableDates(dates);
      setSelectedBusinessId(profile.businessId || "none");
      setCurrentStep(1);
@@ -493,17 +533,23 @@ export default function BookingPage() {
                             />
                           </Label>
 
-                          {[...existingPictureUrls, ...picturePreviews].map((url, index) => (
-                            <div key={index} className="relative aspect-square rounded-xl overflow-hidden group border-2">
-                              <img src={url} alt={`Upload ${index}`} className="w-full h-full object-cover" />
+                          {existingPictures.map((pic) => (
+                            <div key={pic.id} className="relative aspect-square rounded-xl overflow-hidden group border-2">
+                              <img src={pic.imageUrl} alt="Existing" className="w-full h-full object-cover" />
                               <button
-                                onClick={() => {
-                                  if (index < existingPictureUrls.length) {
-                                    setExistingPictureUrls(existingPictureUrls.filter((_, i) => i !== index));
-                                  } else {
-                                    removePicture(index - existingPictureUrls.length);
-                                  }
-                                }}
+                                onClick={() => removeExistingPicture(pic.id)}
+                                className="absolute top-1 right-1 p-1 bg-destructive text-destructive-foreground rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </div>
+                          ))}
+
+                          {picturePreviews.map((url, index) => (
+                            <div key={`new-${index}`} className="relative aspect-square rounded-xl overflow-hidden group border-2">
+                              <img src={url} alt={`New ${index}`} className="w-full h-full object-cover" />
+                              <button
+                                onClick={() => removePicture(index)}
                                 className="absolute top-1 right-1 p-1 bg-destructive text-destructive-foreground rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                               >
                                 <X className="h-3 w-3" />
