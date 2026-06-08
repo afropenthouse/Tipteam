@@ -14,6 +14,7 @@ import { getPublicBookingProfile, getUnavailableDates, createBooking } from "@/l
 import { useToast } from "@/hooks/use-toast";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import useEmblaCarousel from 'embla-carousel-react';
 
 export default function PublicBookingPage() {
   const { publicId } = useParams<{ publicId: string }>();
@@ -38,6 +39,28 @@ export default function PublicBookingPage() {
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [customService, setCustomService] = useState("");
+
+  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true });
+  const [modalEmblaRef, modalEmblaApi] = useEmblaCarousel({ loop: true });
+
+  useEffect(() => {
+    if (!emblaApi) return;
+    emblaApi.on('select', () => {
+      setCurrentImageIndex(emblaApi.selectedScrollSnap());
+    });
+  }, [emblaApi]);
+
+  useEffect(() => {
+    if (!modalEmblaApi) return;
+    modalEmblaApi.on('select', () => {
+      setCurrentImageIndex(modalEmblaApi.selectedScrollSnap());
+    });
+  }, [modalEmblaApi]);
+
+  useEffect(() => {
+    if (emblaApi) emblaApi.scrollTo(currentImageIndex);
+    if (modalEmblaApi) modalEmblaApi.scrollTo(currentImageIndex);
+  }, [currentImageIndex, emblaApi, modalEmblaApi]);
 
   const availableServices = [
     ...(profile?.services || []),
@@ -260,23 +283,33 @@ export default function PublicBookingPage() {
 
                 {profile.pictures?.length > 0 && (
                   <div className="space-y-4">
-                    <div 
-                      className="relative rounded-lg overflow-hidden aspect-video bg-muted border cursor-pointer group"
-                      onClick={() => setShowImageModal(true)}
-                    >
-                      <img 
-                        src={profile.pictures[currentImageIndex].imageUrl} 
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                        alt="Gallery"
-                      />
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                        <Maximize2 className="text-white opacity-0 group-hover:opacity-100 transition-opacity h-10 w-10" />
+                    <div className="relative rounded-lg overflow-hidden aspect-video bg-muted border group">
+                      <div className="overflow-hidden h-full cursor-grab active:cursor-grabbing" ref={emblaRef}>
+                        <div className="flex h-full">
+                          {profile.pictures.map((pic: any, index: number) => (
+                            <div 
+                              key={pic.id} 
+                              className="flex-[0_0_100%] min-w-0 relative h-full"
+                              onClick={() => setShowImageModal(true)}
+                            >
+                              <img 
+                                src={pic.imageUrl} 
+                                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                alt={`Gallery ${index}`}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="absolute inset-0 pointer-events-none bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+                        <Maximize2 className="text-white opacity-0 group-hover:opacity-100 transition-opacity h-10 w-10 drop-shadow-lg" />
                       </div>
                       
                       {profile.pictures.length > 1 && (
-                        <div className="absolute bottom-4 right-4">
+                        <div className="absolute bottom-4 right-4 pointer-events-none">
                           <Badge variant="secondary" className="bg-black/50 text-white border-none backdrop-blur-md px-3 py-1 text-sm font-medium">
-                            +{profile.pictures.length - 1} more photos
+                            {currentImageIndex + 1} / {profile.pictures.length}
                           </Badge>
                         </div>
                       )}
@@ -286,10 +319,10 @@ export default function PublicBookingPage() {
                           <Button
                             variant="secondary"
                             size="icon"
-                            className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full opacity-0 group-hover:opacity-80 hover:!opacity-100 transition-opacity"
+                            className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full opacity-0 group-hover:opacity-80 hover:!opacity-100 transition-opacity z-10"
                             onClick={(e) => {
                               e.stopPropagation();
-                              setCurrentImageIndex((prev) => (prev === 0 ? profile.pictures.length - 1 : prev - 1));
+                              emblaApi?.scrollPrev();
                             }}
                           >
                             <ChevronLeft className="h-5 w-5" />
@@ -297,10 +330,10 @@ export default function PublicBookingPage() {
                           <Button
                             variant="secondary"
                             size="icon"
-                            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full opacity-0 group-hover:opacity-80 hover:!opacity-100 transition-opacity"
+                            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full opacity-0 group-hover:opacity-80 hover:!opacity-100 transition-opacity z-10"
                             onClick={(e) => {
                               e.stopPropagation();
-                              setCurrentImageIndex((prev) => (prev === profile.pictures.length - 1 ? 0 : prev + 1));
+                              emblaApi?.scrollNext();
                             }}
                           >
                             <ChevronRight className="h-5 w-5" />
@@ -523,40 +556,48 @@ export default function PublicBookingPage() {
             <Button
               variant="ghost"
               size="icon"
-              className="absolute right-4 top-4 text-white hover:bg-white/20 z-10"
+              className="absolute right-4 top-4 text-white hover:bg-white/20 z-20"
               onClick={() => setShowImageModal(false)}
             >
               <X className="h-6 w-6" />
             </Button>
             
-            <img 
-              src={profile.pictures[currentImageIndex].imageUrl} 
-              className="max-w-full max-h-full object-contain"
-              alt="Full view"
-            />
+            <div className="overflow-hidden w-full h-full cursor-grab active:cursor-grabbing" ref={modalEmblaRef}>
+              <div className="flex h-full">
+                {profile.pictures.map((pic: any, index: number) => (
+                  <div key={pic.id} className="flex-[0_0_100%] min-w-0 h-full flex items-center justify-center">
+                    <img 
+                      src={pic.imageUrl} 
+                      className="max-w-full max-h-full object-contain"
+                      alt={`Full view ${index}`}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
 
             {profile.pictures.length > 1 && (
               <>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-white hover:bg-white/20 h-12 w-12 rounded-full"
-                  onClick={() => setCurrentImageIndex((prev) => (prev === 0 ? profile.pictures.length - 1 : prev - 1))}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-white hover:bg-white/20 h-12 w-12 rounded-full z-10"
+                  onClick={() => modalEmblaApi?.scrollPrev()}
                 >
                   <ChevronLeft className="h-8 w-8" />
                 </Button>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-white hover:bg-white/20 h-12 w-12 rounded-full"
-                  onClick={() => setCurrentImageIndex((prev) => (prev === profile.pictures.length - 1 ? 0 : prev + 1))}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-white hover:bg-white/20 h-12 w-12 rounded-full z-10"
+                  onClick={() => modalEmblaApi?.scrollNext()}
                 >
                   <ChevronRight className="h-8 w-8" />
                 </Button>
               </>
             )}
           </div>
-          <div className="p-4 bg-black/50 backdrop-blur-sm flex justify-center gap-2 overflow-x-auto">
+          <div className="p-4 bg-black/50 backdrop-blur-sm flex justify-center gap-2 overflow-x-auto scrollbar-hide">
             {profile.pictures.map((pic: any, index: number) => (
               <button
                 key={pic.id}

@@ -61,6 +61,8 @@ export default function BookingPage() {
    const [selectedBusinessId, setSelectedBusinessId] = useState<string>("none");
    const [hostServices, setHostServices] = useState<string[]>([]);
    const [newServiceInput, setNewServiceInput] = useState("");
+   const [editingServiceIndex, setEditingServiceIndex] = useState<number | null>(null);
+   const [editingServiceValue, setEditingServiceValue] = useState("");
    
    // Unavailable dates
    const [unavailableDates, setUnavailableDates] = useState<{ id: string; date: Date; startTime?: string; endTime?: string }[]>([]);
@@ -133,6 +135,8 @@ export default function BookingPage() {
       setFocusedDate(undefined);
       setHostServices([]);
       setNewServiceInput("");
+      setEditingServiceIndex(null);
+      setEditingServiceValue("");
       setSelectedBusinessId(defaultBusiness ? defaultBusiness.id : "none");
       setCurrentStep(1);
     };
@@ -163,6 +167,21 @@ export default function BookingPage() {
   const removeExistingPicture = (id: string) => {
     setExistingPictures(existingPictures.filter(p => p.id !== id));
     setDeletedPictureIds([...deletedPictureIds, id]);
+  };
+
+  const startEditingService = (index: number, value: string) => {
+    setEditingServiceIndex(index);
+    setEditingServiceValue(value);
+  };
+
+  const saveServiceEdit = (index: number) => {
+    if (editingServiceValue.trim()) {
+      const newServices = [...hostServices];
+      newServices[index] = editingServiceValue.trim();
+      setHostServices(newServices);
+    }
+    setEditingServiceIndex(null);
+    setEditingServiceValue("");
   };
 
   const removeUnavailableSlot = (id: string) => {
@@ -496,17 +515,46 @@ export default function BookingPage() {
                         {hostServices.length > 0 && (
                           <div className="flex flex-wrap gap-2 mt-2 p-3 bg-muted/30 rounded-xl border border-dashed">
                             {hostServices.map((service, index) => (
-                              <Badge key={index} variant="secondary" className="pl-3 pr-1 py-1 flex items-center gap-1 group">
-                                {service}
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-4 w-4 p-0 hover:bg-destructive hover:text-destructive-foreground rounded-full"
-                                  onClick={() => setHostServices(hostServices.filter((_, i) => i !== index))}
+                              editingServiceIndex === index ? (
+                                <div key={index} className="flex items-center gap-1 bg-background border-2 border-primary rounded-lg px-2 py-1 animate-in zoom-in-95 duration-200">
+                                  <Input
+                                    value={editingServiceValue}
+                                    onChange={(e) => setEditingServiceValue(e.target.value)}
+                                    onBlur={() => saveServiceEdit(index)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        saveServiceEdit(index);
+                                      } else if (e.key === 'Escape') {
+                                        setEditingServiceIndex(null);
+                                      }
+                                    }}
+                                    className="h-7 min-w-[100px] border-none focus-visible:ring-0 p-0 text-sm font-medium"
+                                    autoFocus
+                                  />
+                                </div>
+                              ) : (
+                                <Badge 
+                                  key={index} 
+                                  variant="secondary" 
+                                  className="pl-3 pr-1 py-1 flex items-center gap-1 group cursor-pointer hover:bg-primary/10 hover:text-primary transition-colors"
+                                  onClick={() => startEditingService(index, service)}
+                                  title="Click to edit"
                                 >
-                                  <X className="h-2.5 w-2.5" />
-                                </Button>
-                              </Badge>
+                                  {service}
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-4 w-4 p-0 hover:bg-destructive hover:text-destructive-foreground rounded-full"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setHostServices(hostServices.filter((_, i) => i !== index));
+                                    }}
+                                  >
+                                    <X className="h-2.5 w-2.5" />
+                                  </Button>
+                                </Badge>
+                              )
                             ))}
                           </div>
                         )}
