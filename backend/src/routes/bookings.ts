@@ -4,6 +4,7 @@ import multer from "multer";
 import prisma from "../lib/prisma.js";
 import { authenticate, AuthRequest } from "../middleware/auth.js";
 import cloudinary from "../lib/cloudinary.js";
+import { sendBookingNotificationEmail } from "../lib/email.js";
 
 const router = Router();
 
@@ -436,8 +437,10 @@ router.post(
   ],
   async (req: Request, res: Response) => {
     try {
+      console.log("Booking creation request received:", req.body);
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
+        console.warn("Booking validation errors:", errors.array());
         return res.status(400).json({ errors: errors.array() });
       }
 
@@ -447,14 +450,21 @@ router.post(
       const bookingDate = new Date(date);
       bookingDate.setUTCHours(0, 0, 0, 0);
 
-      // Verify the booking profile exists
+      // Verify the booking profile exists and include user details
+      console.log(`Fetching profile ${bookingProfileId} and host user...`);
       const profile = await prisma.bookingProfile.findUnique({
-        where: { id: bookingProfileId }
+        where: { id: bookingProfileId },
+        include: {
+          user: true
+        }
       });
 
       if (!profile) {
+        console.error(`Booking profile ${bookingProfileId} not found`);
         return res.status(404).json({ error: "Booking profile not found" });
       }
+
+      console.log(`Found profile: ${profile.name}, Host User: ${profile.user?.email || "NOT FOUND"}`);
 
       // Check if the date is unavailable (manually blocked for the whole day)
       const unavailableDate = await prisma.unavailableDate.findFirst({
@@ -467,6 +477,7 @@ router.post(
       });
 
       if (unavailableDate) {
+        console.warn(`Booking failed: Date ${date} is unavailable`);
         return res.status(400).json({ error: "Selected date is unavailable" });
       }
 
@@ -480,9 +491,11 @@ router.post(
       });
 
       if (existingBooking) {
+        console.warn(`Booking failed: Time slot ${time || 'full-day'} on ${date} is already booked`);
         return res.status(400).json({ error: "Selected time slot is already booked" });
       }
 
+      console.log("Creating booking in database...");
       const booking = await prisma.booking.create({
         data: {
           bookingProfileId: bookingProfileId,
@@ -493,9 +506,34 @@ router.post(
           notes: notes || null,
         }
       });
+      console.log("Booking created successfully:", booking.id);
+
+      // Send email notification to host (non-blocking)
+      if (profile.user && profile.user.email) {
+        console.log(`Triggering host notification email to ${profile.user.email}...`);
+        sendBookingNotificationEmail(
+          profile.user.email,
+          profile.user.fullName,
+          {
+            bookingProfileName: profile.name,
+            customerName,
+            customerPhone,
+            date: bookingDate.toISOString().split('T')[0],
+            time: time || undefined,
+            notes: notes || undefined
+          }
+        ).then(() => {
+          console.log(`Async: Host notification email process completed for ${profile.user.email}`);
+        }).catch(err => {
+          console.error(`Async ERROR: Failed to send host notification email to ${profile.user.email}:`, err);
+        });
+      } else {
+        console.warn("Skipping email: Host user or email not found in profile record.");
+      }
 
       res.status(201).json({ booking });
     } catch (error) {
+      console.error("CRITICAL ERROR in booking creation route:", error);
       res.status(500).json({ 
         error: "Failed to create booking",
         details: error instanceof Error ? error.message : "Unknown error"

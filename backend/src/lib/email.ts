@@ -3,35 +3,62 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+console.log("SMTP Config Keys Check:", {
+  hasHost: !!process.env.SMTP_HOST,
+  hasUser: !!process.env.SMTP_USER,
+  hasPass: !!process.env.SMTP_PASS,
+  hasPort: !!process.env.SMTP_PORT,
+  hasFrom: !!process.env.FROM_EMAIL
+});
+
+console.log("SMTP Config Values Check (DEBUG ONLY):", {
+  host: process.env.SMTP_HOST,
+  user: process.env.SMTP_USER,
+  port: process.env.SMTP_PORT
+});
+
 const hasSmtpConfig = process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS;
 
 const transporter = hasSmtpConfig
   ? nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
+      service: process.env.SMTP_HOST?.includes('gmail') ? 'gmail' : undefined,
+      host: process.env.SMTP_HOST?.includes('gmail') ? undefined : process.env.SMTP_HOST,
       port: Number(process.env.SMTP_PORT) || 587,
-      secure: true,
+      secure: Number(process.env.SMTP_PORT) === 465,
       auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
       },
-      connectionTimeout: 5000,
-      greetingTimeout: 5000,
-      socketTimeout: 5000,
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 10000,
     })
   : null;
 
+if (!transporter) {
+  console.error("CRITICAL: Email transporter failed to initialize. Check your SMTP environment variables.");
+} else {
+  console.log("Email transporter initialized successfully.");
+}
+
 async function sendMail(mailOptions: { to: string; subject: string; html: string }) {
+  console.log(`Attempting to send email to: ${mailOptions.to} with subject: ${mailOptions.subject}`);
   if (!transporter) {
     console.warn("SMTP not configured - skipping email send");
     return;
   }
   try {
-    await transporter.sendMail({
-      from: process.env.FROM_EMAIL || process.env.SMTP_USER,
+    const fromAddress = process.env.FROM_EMAIL || process.env.SMTP_USER;
+    console.log(`Sending email from: ${fromAddress}`);
+    const info = await transporter.sendMail({
+      from: fromAddress,
       ...mailOptions,
     });
+    console.log("Email sent successfully! Message ID:", info.messageId);
+    return info;
   } catch (error) {
-    console.error("Failed to send email:", error);
+    console.error("ERROR sending email:", error);
+    throw error;
   }
 }
 
@@ -291,6 +318,64 @@ export const sendFeedbackNotificationEmail = async (
           ` : ''}
           
           <p class="email-secondary" style="margin-top: 20px; font-size: 14px; line-height: 1.5;">Log in to your dashboard to view all feedback and manage your business reputation.</p>
+          <hr class="email-divider" style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
+          <p class="email-footer" style="font-size: 12px; margin: 0;">Tracla - Instant Tips & Feedback</p>
+        </div>
+      </div>
+    `,
+  });
+};
+
+export const sendBookingNotificationEmail = async (
+  email: string,
+  fullName: string,
+  details: {
+    bookingProfileName: string;
+    customerName: string;
+    customerPhone: string;
+    date: string;
+    time?: string;
+    notes?: string;
+  }
+) => {
+  await sendMail({
+    to: email,
+    subject: "New booking received on Tracla!",
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden;" id="email-container">
+        <style>
+          @media (prefers-color-scheme: dark) {
+            #email-container { background-color: #1a1a2e !important; }
+            .email-text { color: #e5e5e5 !important; }
+            .email-secondary { color: #9ca3af !important; }
+            .booking-box { background-color: #1f2937 !important; }
+            .booking-title { color: #6366F1 !important; }
+            .booking-label { color: #e5e5e5 !important; }
+            .booking-value { color: #9ca3af !important; }
+            .email-divider { border-top-color: #374151 !important; }
+            .email-footer { color: #9ca3af !important; }
+          }
+        </style>
+        <div style="text-align: center; padding: 30px 20px 20px;">
+          <picture>
+            <source media="(prefers-color-scheme: dark)" srcset="${process.env.FRONTEND_URL || 'http://localhost:5173'}/logo2.png">
+            <img src="${process.env.FRONTEND_URL || 'http://localhost:5173'}/logo.png" alt="Tracla Logo" style="height: 60px; width: auto;" />
+          </picture>
+        </div>
+        <div style="padding: 0 30px 30px;">
+          <p class="email-text" style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.5;">Hi ${fullName},</p>
+          <p class="email-text" style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.5;">Great news! You've received a new booking for "${details.bookingProfileName}".</p>
+          
+          <div class="booking-box" style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <h3 class="booking-title" style="margin: 0 0 10px 0; color: #6366F1;">Booking Details:</h3>
+            <p><strong class="booking-label">Customer Name:</strong> <span class="booking-value">${details.customerName}</span></p>
+            <p><strong class="booking-label">Customer Phone:</strong> <span class="booking-value">${details.customerPhone}</span></p>
+            <p><strong class="booking-label">Date:</strong> <span class="booking-value">${details.date}</span></p>
+            ${details.time ? `<p><strong class="booking-label">Time:</strong> <span class="booking-value">${details.time}</span></p>` : ''}
+            ${details.notes ? `<p><strong class="booking-label">Notes:</strong> <span class="booking-value">${details.notes}</span></p>` : ''}
+          </div>
+          
+          <p class="email-secondary" style="margin-top: 20px; font-size: 14px; line-height: 1.5;">Log in to your dashboard to view all bookings and manage your availability.</p>
           <hr class="email-divider" style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
           <p class="email-footer" style="font-size: 12px; margin: 0;">Tracla - Instant Tips & Feedback</p>
         </div>

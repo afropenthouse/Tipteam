@@ -665,6 +665,7 @@ export type BookingProfile = {
     id: string;
     name: string;
   };
+  bookingsCount: number;
 };
 
 export type PublicBookingProfile = {

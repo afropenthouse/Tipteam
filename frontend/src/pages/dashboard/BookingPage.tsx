@@ -810,7 +810,9 @@ export default function BookingPage() {
               </div>
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Total Bookings</p>
-                <h3 className="text-2xl font-bold">{allBookings.length}</h3>
+                <h3 className="text-2xl font-bold">
+                  {Math.max(allBookings.length, profiles.reduce((acc, p) => acc + (p.bookingsCount || 0), 0))}
+                </h3>
               </div>
             </div>
           </CardContent>
