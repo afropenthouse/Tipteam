@@ -112,13 +112,14 @@ export default function AdminUsers() {
                     <TableHead>Feedback</TableHead>
                     <TableHead>Subscription</TableHead>
                     <TableHead>Joined</TableHead>
+                    <TableHead>Expires</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredUsers?.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                      <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
                         No users found.
                       </TableCell>
                     </TableRow>
@@ -141,17 +142,22 @@ export default function AdminUsers() {
                         </TableCell>
                         <TableCell className="font-medium">{user.businessCount}</TableCell>
                         <TableCell className="font-medium">{user.feedbackCount}</TableCell>
-                        <TableCell>
-                          {user.hasActiveSubscription ? (
-                            <Badge variant="outline" className="border-primary text-primary font-bold">PRO</Badge>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">FREE</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground text-xs">
-                          {new Date(user.createdAt).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell className="text-right">
+<TableCell>
+                           {user.hasActiveSubscription ? (
+                             <Badge variant="outline" className="border-primary text-primary font-bold">PRO</Badge>
+                           ) : (
+                             <span className="text-xs text-muted-foreground">FREE</span>
+                           )}
+                         </TableCell>
+                         <TableCell className="text-muted-foreground text-xs">
+                           {new Date(user.createdAt).toLocaleDateString()}
+                         </TableCell>
+                         <TableCell className="text-xs text-muted-foreground">
+                           {user.subscriptionExpiresAt
+                             ? new Date(user.subscriptionExpiresAt).toLocaleDateString()
+                             : "—"}
+                         </TableCell>
+                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
                             <Button
                               variant="ghost"

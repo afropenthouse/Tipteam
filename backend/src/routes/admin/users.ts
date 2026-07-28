@@ -27,12 +27,14 @@ router.get("/", adminAuth, async (req: AdminRequest, res: Response) => {
         });
         const hasActiveSub = await prisma.subscription.findFirst({
           where: { userId: user.id, status: "ACTIVE", endDate: { gt: new Date() } },
+          select: { endDate: true },
         });
         return {
           ...user,
           businessCount,
           feedbackCount,
           hasActiveSubscription: !!hasActiveSub,
+          subscriptionExpiresAt: hasActiveSub?.endDate ?? null,
         };
       })
     );

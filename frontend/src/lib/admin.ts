@@ -24,6 +24,7 @@ export interface AdminUser extends User {
   businessCount: number;
   feedbackCount: number;
   hasActiveSubscription: boolean;
+  subscriptionExpiresAt: string | null;
 }
 
 class AdminApi {
